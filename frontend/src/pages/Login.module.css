@@ -1,0 +1,35 @@
+.page {
+  display: grid;
+  justify-items: center;
+  padding: 24px 16px;
+}
+.form {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  max-width: 360px;
+}
+.form label {
+  display: grid;
+  gap: 4px;
+}
+.input {
+  font: inherit;
+  font-size: 16px; /* 16 px keeps iOS from zooming into the field */
+  min-height: 44px;
+  width: 100%;
+  padding: 0 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.error {
+  color: #c0392b;
+  margin: 0;
+}
+.submit {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}

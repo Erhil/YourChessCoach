@@ -1,0 +1,22 @@
+# Downloaded data and engines (the README files stay in git)
+data/*
+!data/README.md
+engines/*
+!engines/README.md
+
+# Environments, builds, caches
+.venv/
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+test-results/
+playwright-report/
+
+# Local databases and settings
+*.db
+*.db-journal
+.env

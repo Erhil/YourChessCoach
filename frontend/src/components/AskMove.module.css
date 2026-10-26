@@ -1,0 +1,32 @@
+.ask {
+  margin-top: 8px;
+}
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.buttons button,
+.free button {
+  min-height: 44px;
+  min-width: 44px;
+}
+.free {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.free input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.ask p {
+  margin: 12px 0 0;
+}

@@ -1,0 +1,76 @@
+.layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.side {
+  min-width: 0;
+}
+/* No game yet: on a narrow screen the start card goes above the board, so «Начать» is in view. */
+.noGame .side {
+  order: -1;
+}
+.setup {
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.setup h2 {
+  margin: 0;
+}
+.start {
+  min-height: 56px;
+  min-width: 160px;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+.idle {
+  opacity: 0.55;
+}
+.secondary {
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px solid currentColor;
+}
+.secondary button {
+  opacity: 0.8;
+}
+.over {
+  font-weight: 700;
+  font-size: 1.125rem;
+  padding: 8px 12px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+}
+.dialog {
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+.dialog p {
+  margin: 0 0 8px;
+}
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.buttons button {
+  min-height: 44px;
+  min-width: 44px;
+}
+@media (min-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 480px) minmax(220px, 1fr);
+    align-items: start;
+  }
+  .noGame .side {
+    order: 0;
+  }
+}

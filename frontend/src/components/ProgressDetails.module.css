@@ -1,0 +1,84 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th,
+.table td {
+  padding: 8px 4px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.table td:nth-child(n + 2),
+.table th:nth-child(n + 2) {
+  text-align: right;
+}
+.weak {
+  color: var(--accent);
+  font-weight: 600;
+}
+.steps {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.step {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+.time {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.weeks {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.weeks li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.sub {
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+.bars {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+  height: 96px;
+}
+.barCol {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.barFill {
+  width: 60%;
+  min-height: 1px;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0;
+}
+.barLabel {
+  font-size: 0.7rem;
+  color: var(--muted);
+}

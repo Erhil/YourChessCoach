@@ -1,0 +1,49 @@
+.wrap {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 1;
+  container-type: inline-size;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.promo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 55%);
+  z-index: 10;
+}
+.promoBox {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.promoBox button {
+  min-width: 56px;
+  min-height: 56px;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Top right corner of a square; the board is 8 squares wide, so 1 square = 12.5cqw. */
+.badge {
+  position: absolute;
+  top: 1.5cqw;
+  right: 1.5cqw;
+  margin-left: 0;
+  z-index: 5;
+  font-size: 3.2cqw;
+}

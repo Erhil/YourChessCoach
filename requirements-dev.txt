@@ -1,0 +1,4 @@
+# Development tools: tests and lint. setup.py --dev installs them.
+-r requirements.txt
+pytest==9.1.1
+ruff==0.17.2

@@ -1,0 +1,30 @@
+.box {
+  max-width: 480px;
+  margin: 16px 0;
+}
+.title {
+  margin: 0 0 8px;
+}
+.buttons {
+  flex-wrap: wrap;
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+.buttons button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.explain {
+  min-height: 2em;
+}
+.explain p {
+  margin: 4px 0;
+}
+.move {
+  font-weight: 700;
+}
+.done {
+  font-weight: 700;
+  color: #2a8a3a;
+}

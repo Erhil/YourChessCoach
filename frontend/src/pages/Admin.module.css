@@ -1,0 +1,104 @@
+.page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 16px;
+  min-width: 0;
+}
+.form {
+  display: grid;
+  gap: 12px;
+  max-width: 360px;
+}
+.form label {
+  display: grid;
+  gap: 4px;
+}
+.input {
+  font: inherit;
+  font-size: 16px; /* 16 px keeps iOS from zooming into the field */
+  min-height: 44px;
+  min-width: 0;
+  flex: 1 1 160px;
+  padding: 0 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.row a {
+  display: inline-flex;
+  align-items: center;
+}
+.error {
+  color: #c0392b;
+  margin: 0;
+}
+.warn {
+  font-weight: 600;
+}
+.tokenBox {
+  margin: 12px 0;
+  padding: 12px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.token {
+  display: block;
+  padding: 8px;
+  font-size: 1.1rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th,
+.table td {
+  padding: 8px 4px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.actions {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+  }
+  .table thead {
+    display: none;
+  }
+  .table tr {
+    padding: 8px 0;
+    border-bottom: 2px solid var(--border);
+  }
+  .table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 0;
+    padding: 2px 0;
+  }
+  .table td[data-label]::before {
+    content: attr(data-label);
+    color: var(--muted);
+  }
+  .table td.actions {
+    display: block;
+    padding-top: 8px;
+  }
+}

@@ -1,0 +1,123 @@
+.card {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.card h2 {
+  font-size: 1.1rem;
+  margin: 0 0 8px;
+}
+.days {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  text-align: center;
+}
+.day {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+}
+.active .mark {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.today {
+  color: var(--text);
+  font-weight: 600;
+}
+.today .mark {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+.goal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.goal button {
+  min-width: 44px;
+}
+.goal button[aria-pressed='true'],
+.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.tasks {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.task {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+.text {
+  flex: 1 1 12em;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.meta {
+  color: var(--muted);
+  white-space: nowrap;
+}
+/* A quiet text button: the task link stays the main target; the tap area stays 44×44. */
+.swap {
+  min-width: 44px;
+  padding: 0 8px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  text-decoration: underline;
+  font-size: 0.9rem;
+}
+.done {
+  display: inline-block; /* the animation scales it */
+  color: var(--accent);
+  font-weight: 700;
+}

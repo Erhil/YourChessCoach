@@ -1,0 +1,79 @@
+.shell {
+  min-height: 100dvh;
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: env(safe-area-inset-top) 8px 0 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.menuButton {
+  width: 44px;
+  padding: 0;
+  font-size: 22px;
+}
+.title {
+  font-weight: 600;
+}
+.nav {
+  display: none;
+  flex-direction: column;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.navOpen {
+  display: flex;
+}
+.link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  color: var(--text);
+  text-decoration: none;
+}
+.active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+}
+.login {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+.main {
+  padding: 16px;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .shell {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    align-items: start;
+  }
+  .header {
+    display: none;
+  }
+  .nav {
+    display: flex;
+    position: sticky; /* stays full height while a long page scrolls */
+    top: 0;
+    height: 100dvh;
+    overflow-y: auto;
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+    padding-top: env(safe-area-inset-top);
+  }
+}

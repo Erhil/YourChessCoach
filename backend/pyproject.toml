@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chess-coach"
+version = "0.1.0"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+# Dependencies: requirements.txt and requirements-dev.txt at the repository root.
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "engine: tests that need a real Stockfish binary",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

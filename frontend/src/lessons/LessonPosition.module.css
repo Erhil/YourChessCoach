@@ -1,0 +1,21 @@
+.box {
+  max-width: 480px;
+  margin: 16px 0;
+}
+.task {
+  font-weight: 700;
+}
+.mark {
+  margin-left: 8px;
+  color: #2a8a3a;
+  font-weight: 400;
+}
+.status {
+  min-height: 1.5em;
+  font-weight: 700;
+}
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

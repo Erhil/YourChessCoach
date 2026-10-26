@@ -1,0 +1,29 @@
+.badge {
+  --q-book: #8a5a2b;
+  --q-best: #1b7f4a;
+  --q-good: #4b7a1f;
+  --q-inaccuracy: #a05a00;
+  --q-mistake: #c2410c;
+  --q-blunder: #b91c1c;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #fff;
+  color: #fff;
+  font-size: 0.7em;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+  margin-left: 0.25em;
+  user-select: none;
+  pointer-events: none;
+}
+.badge[data-quality='book'] { background: var(--q-book); }
+.badge[data-quality='best'] { background: var(--q-best); }
+.badge[data-quality='good'] { background: var(--q-good); }
+.badge[data-quality='inaccuracy'] { background: var(--q-inaccuracy); }
+.badge[data-quality='mistake'] { background: var(--q-mistake); }
+.badge[data-quality='blunder'] { background: var(--q-blunder); }

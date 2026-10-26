@@ -1,0 +1,25 @@
+.layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.side {
+  min-width: 0;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.status {
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+@media (min-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 480px) minmax(220px, 1fr);
+    align-items: start;
+  }
+}

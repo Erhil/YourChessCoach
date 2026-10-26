@@ -1,0 +1,37 @@
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+.pair {
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+}
+.num {
+  color: var(--muted);
+}
+.move {
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.last {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+button.move {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+}
+button.last {
+  background: var(--accent);
+  color: var(--accent-text);
+}

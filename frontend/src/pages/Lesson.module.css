@@ -1,0 +1,28 @@
+.lesson {
+  max-width: 720px;
+  min-width: 0;
+}
+.md {
+  overflow-wrap: anywhere;
+}
+.md h1 {
+  font-size: 1.5rem;
+}
+.md h2 {
+  font-size: 1.25rem;
+  margin: 24px 0 8px;
+}
+.md img,
+.md table {
+  max-width: 100%;
+}
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 24px 0;
+}
+.nav a {
+  display: flex;
+  align-items: center;
+}

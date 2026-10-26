@@ -1,0 +1,3099 @@
+[
+ {
+  "id": "queen_left_hanging",
+  "kind": "hanging_piece",
+  "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+  "move_uci": "d8h4",
+  "facts": {
+   "fen_before": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+   "side": "black",
+   "player_move": {
+    "san": "Qh4",
+    "uci": "d8h4"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 0.866,
+   "eval_before": {
+    "cp": -35,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": -901,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Nc6",
+    "uci": "b8c6"
+   },
+   "best_line": [
+    "Nc6",
+    "Bb5",
+    "a6",
+    "Ba4"
+   ],
+   "refutation": [
+    "Nxh4",
+    "d5",
+    "exd5",
+    "Nf6"
+   ],
+   "material": {
+    "change": -10,
+    "lost": [
+     "Q",
+     "P"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [
+    {
+     "kind": "hanging_piece",
+     "by": {
+      "square": "f3",
+      "piece": "N"
+     },
+     "targets": [
+      {
+       "square": "h4",
+       "piece": "q"
+      }
+     ],
+     "move_san": null,
+     "material": null
+    },
+    {
+     "kind": "losing_exchange",
+     "by": {
+      "square": "h4",
+      "piece": "q"
+     },
+     "targets": [],
+     "move_san": "Qh4",
+     "material": -9
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "blunder-check",
+    "title": "Как не зевать: проверка перед ходом"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "allows_mate_in_1",
+  "kind": "allowed_mate",
+  "fen": "rnbqkbnr/pppp1ppp/8/4p3/8/5P2/PPPPP1PP/RNBQKBNR w KQkq - 0 2",
+  "move_uci": "g2g4",
+  "facts": {
+   "fen_before": "rnbqkbnr/pppp1ppp/8/4p3/8/5P2/PPPPP1PP/RNBQKBNR w KQkq - 0 2",
+   "side": "white",
+   "player_move": {
+    "san": "g4",
+    "uci": "g2g4"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 0.868,
+   "eval_before": {
+    "cp": -72,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": -1
+   },
+   "best_move": {
+    "san": "Nc3",
+    "uci": "b1c3"
+   },
+   "best_line": [
+    "Nc3",
+    "Nf6",
+    "d4",
+    "exd4",
+    "Qxd4",
+    "Nc6"
+   ],
+   "refutation": [
+    "Qh4#"
+   ],
+   "material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [
+    {
+     "kind": "pin",
+     "by": {
+      "square": "h4",
+      "piece": "q"
+     },
+     "targets": [
+      {
+       "square": "h2",
+       "piece": "P"
+      },
+      {
+       "square": "h1",
+       "piece": "R"
+      }
+     ],
+     "move_san": "Qh4#",
+     "material": null
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": 1,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "blunder-check",
+    "title": "Как не зевать: проверка перед ходом"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "misses_knight_fork",
+  "kind": "missed_fork",
+  "fen": "q3k3/8/8/3N4/8/8/PPP4K/3R4 w - - 0 1",
+  "move_uci": "a2a3",
+  "facts": {
+   "fen_before": "q3k3/8/8/3N4/8/8/PPP4K/3R4 w - - 0 1",
+   "side": "white",
+   "player_move": {
+    "san": "a3",
+    "uci": "a2a3"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 0.903,
+   "eval_before": {
+    "cp": 809,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": 0,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Nc7+",
+    "uci": "d5c7"
+   },
+   "best_line": [
+    "Nc7+",
+    "Kf8",
+    "Nxa8",
+    "Kf7"
+   ],
+   "refutation": [
+    "Qb8+",
+    "Kg2",
+    "Qxb2",
+    "Rd2"
+   ],
+   "material": {
+    "change": -1,
+    "lost": [
+     "P"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 9,
+    "lost": [],
+    "gained": [
+     "Q"
+    ]
+   },
+   "motifs_against": [],
+   "motifs_missed": [
+    {
+     "kind": "fork",
+     "by": {
+      "square": "c7",
+      "piece": "N"
+     },
+     "targets": [
+      {
+       "square": "a8",
+       "piece": "q"
+      },
+      {
+       "square": "e8",
+       "piece": "k"
+      }
+     ],
+     "move_san": "Nc7+",
+     "material": null
+    }
+   ],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "fork",
+    "title": "Вилка"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "best_move_wins_queen",
+  "kind": "best_move",
+  "fen": "rnb1kbnr/pppp1ppp/8/4p3/4P2q/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+  "move_uci": "f3h4",
+  "facts": {
+   "fen_before": "rnb1kbnr/pppp1ppp/8/4p3/4P2q/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+   "side": "white",
+   "player_move": {
+    "san": "Nxh4",
+    "uci": "f3h4"
+   },
+   "classification": "best",
+   "win_chance_drop": 0.0,
+   "eval_before": {
+    "cp": 896,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": 896,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Nxh4",
+    "uci": "f3h4"
+   },
+   "best_line": [
+    "Nxh4",
+    "Nf6",
+    "Nf3",
+    "d5"
+   ],
+   "refutation": [
+    "Nf6",
+    "Nf3",
+    "d5"
+   ],
+   "material": {
+    "change": 9,
+    "lost": [],
+    "gained": [
+     "Q"
+    ]
+   },
+   "missed_material": {
+    "change": 9,
+    "lost": [],
+    "gained": [
+     "Q"
+    ]
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": null,
+   "game_over": null
+  }
+ },
+ {
+  "id": "misses_mate_in_1",
+  "kind": "missed_mate",
+  "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+  "move_uci": "g1f2",
+  "facts": {
+   "fen_before": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+   "side": "white",
+   "player_move": {
+    "san": "Kf2",
+    "uci": "g1f2"
+   },
+   "classification": "mistake",
+   "win_chance_drop": 0.283,
+   "eval_before": {
+    "cp": null,
+    "mate": 1
+   },
+   "eval_after": {
+    "cp": 490,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Ra8#",
+    "uci": "a1a8"
+   },
+   "best_line": [
+    "Ra8#"
+   ],
+   "refutation": [
+    "g5",
+    "Ra5",
+    "h6"
+   ],
+   "material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [],
+   "motifs_missed": [
+    {
+     "kind": "back_rank",
+     "by": {
+      "square": "a8",
+      "piece": "R"
+     },
+     "targets": [
+      {
+       "square": "g8",
+       "piece": "k"
+      }
+     ],
+     "move_san": "Ra8#",
+     "material": null
+    }
+   ],
+   "allowed_mate_in": null,
+   "missed_mate_in": 1,
+   "threat": null,
+   "lesson": {
+    "slug": "back-rank-mate",
+    "title": "Мат по последней горизонтали"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "queen_takes_defended_pawn",
+  "kind": "losing_exchange",
+  "fen": "4k3/8/3p4/2p5/8/8/2Q5/4K3 w - - 0 1",
+  "move_uci": "c2c5",
+  "facts": {
+   "fen_before": "4k3/8/3p4/2p5/8/8/2Q5/4K3 w - - 0 1",
+   "side": "white",
+   "player_move": {
+    "san": "Qxc5",
+    "uci": "c2c5"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 0.894,
+   "eval_before": {
+    "cp": 783,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": 0,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Ke2",
+    "uci": "e1e2"
+   },
+   "best_line": [
+    "Ke2",
+    "Kd7",
+    "Ke3",
+    "Kd8"
+   ],
+   "refutation": [
+    "dxc5",
+    "Ke2",
+    "Kd7"
+   ],
+   "material": {
+    "change": -8,
+    "lost": [
+     "Q"
+    ],
+    "gained": [
+     "P"
+    ]
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [
+    {
+     "kind": "losing_exchange",
+     "by": {
+      "square": "c5",
+      "piece": "Q"
+     },
+     "targets": [
+      {
+       "square": "c5",
+       "piece": "p"
+      }
+     ],
+     "move_san": "Qxc5",
+     "material": -8
+    },
+    {
+     "kind": "hanging_piece",
+     "by": {
+      "square": "d6",
+      "piece": "p"
+     },
+     "targets": [
+      {
+       "square": "c5",
+       "piece": "Q"
+      }
+     ],
+     "move_san": null,
+     "material": null
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "piece-values",
+    "title": "Ценность фигур и размены"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "ignores_mate_threat",
+  "kind": "mate_threat_ignored",
+  "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 3 3",
+  "move_uci": "a7a6",
+  "facts": {
+   "fen_before": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 3 3",
+   "side": "black",
+   "player_move": {
+    "san": "a6",
+    "uci": "a7a6"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.02,
+   "eval_before": {
+    "cp": 11,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": -1
+   },
+   "best_move": {
+    "san": "Nf6",
+    "uci": "g8f6"
+   },
+   "best_line": [
+    "Nf6",
+    "Ne2",
+    "d5",
+    "exd5",
+    "Bg4"
+   ],
+   "refutation": [
+    "Qxf7#"
+   ],
+   "material": {
+    "change": -1,
+    "lost": [
+     "P"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": -1,
+    "lost": [
+     "P"
+    ],
+    "gained": []
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": 1,
+   "missed_mate_in": null,
+   "threat": {
+    "move_san": "Qxf7#",
+    "mate_in": 1,
+    "material": 1
+   },
+   "lesson": {
+    "slug": "blunder-check",
+    "title": "Как не зевать: проверка перед ходом"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "small_inaccuracy_no_loss",
+  "kind": "inaccuracy",
+  "fen": "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+  "move_uci": "h2h4",
+  "facts": {
+   "fen_before": "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+   "side": "white",
+   "player_move": {
+    "san": "h4",
+    "uci": "h2h4"
+   },
+   "classification": "inaccuracy",
+   "win_chance_drop": 0.154,
+   "eval_before": {
+    "cp": 13,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": -71,
+    "mate": null
+   },
+   "best_move": {
+    "san": "c3",
+    "uci": "c2c3"
+   },
+   "best_line": [
+    "c3",
+    "Nf6",
+    "d4",
+    "exd4",
+    "O-O"
+   ],
+   "refutation": [
+    "Nf6",
+    "Nc3",
+    "d6"
+   ],
+   "material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "missed_material": {
+    "change": -1,
+    "lost": [
+     "P"
+    ],
+    "gained": []
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": null,
+   "game_over": null
+  }
+ },
+ {
+  "id": "refutation_is_fork",
+  "kind": "fork_against",
+  "fen": "r3k3/pp3ppp/8/1N6/8/8/PP3PPP/4K3 b - - 0 1",
+  "move_uci": "h7h6",
+  "facts": {
+   "fen_before": "r3k3/pp3ppp/8/1N6/8/8/PP3PPP/4K3 b - - 0 1",
+   "side": "black",
+   "player_move": {
+    "san": "h6",
+    "uci": "h7h6"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.16,
+   "eval_before": {
+    "cp": 571,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": -216,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Ke7",
+    "uci": "e8e7"
+   },
+   "best_line": [
+    "Ke7",
+    "g3",
+    "Rd8",
+    "Ke2"
+   ],
+   "refutation": [
+    "Nc7+",
+    "Kd7",
+    "Nxa8",
+    "Kc8"
+   ],
+   "material": {
+    "change": -5,
+    "lost": [
+     "R"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [
+    {
+     "kind": "fork",
+     "by": {
+      "square": "c7",
+      "piece": "N"
+     },
+     "targets": [
+      {
+       "square": "a8",
+       "piece": "r"
+      },
+      {
+       "square": "e8",
+       "piece": "k"
+      }
+     ],
+     "move_san": "Nc7+",
+     "material": null
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": {
+    "move_san": "Nc7+",
+    "mate_in": null,
+    "material": 5
+   },
+   "lesson": {
+    "slug": "fork",
+    "title": "Вилка"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "gives_checkmate",
+  "kind": "checkmate_given",
+  "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+  "move_uci": "a1a8",
+  "facts": {
+   "fen_before": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+   "side": "white",
+   "player_move": {
+    "san": "Ra8#",
+    "uci": "a1a8"
+   },
+   "classification": "best",
+   "win_chance_drop": 0.0,
+   "eval_before": {
+    "cp": null,
+    "mate": 1
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": 0
+   },
+   "best_move": {
+    "san": "Ra8#",
+    "uci": "a1a8"
+   },
+   "best_line": [
+    "Ra8#"
+   ],
+   "refutation": [],
+   "material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": null,
+   "game_over": "checkmate"
+  }
+ },
+ {
+  "id": "gives_stalemate",
+  "kind": "stalemate",
+  "fen": "7k/8/5K2/8/8/8/8/6Q1 w - - 0 1",
+  "move_uci": "g1g6",
+  "facts": {
+   "fen_before": "7k/8/5K2/8/8/8/8/6Q1 w - - 0 1",
+   "side": "white",
+   "player_move": {
+    "san": "Qg6",
+    "uci": "g1g6"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.0,
+   "eval_before": {
+    "cp": null,
+    "mate": 1
+   },
+   "eval_after": {
+    "cp": 0,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Qg7#",
+    "uci": "g1g7"
+   },
+   "best_line": [
+    "Qg7#"
+   ],
+   "refutation": [],
+   "material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": 1,
+   "threat": null,
+   "lesson": {
+    "slug": "check-mate-stalemate",
+    "title": "Шах, мат и пат"
+   },
+   "game_over": "stalemate"
+  }
+ },
+ {
+  "id": "start_d4_is_best",
+  "kind": "best_move",
+  "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "move_uci": "d2d4",
+  "facts": {
+   "fen_before": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+   "side": "white",
+   "player_move": {
+    "san": "d4",
+    "uci": "d2d4"
+   },
+   "classification": "best",
+   "win_chance_drop": 0.015,
+   "eval_before": {
+    "cp": 34,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": 26,
+    "mate": null
+   },
+   "best_move": {
+    "san": "e4",
+    "uci": "e2e4"
+   },
+   "best_line": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6"
+   ],
+   "refutation": [
+    "d5",
+    "c4",
+    "e6"
+   ],
+   "material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": null,
+   "game_over": null
+  }
+ },
+ {
+  "id": "stalemate_black",
+  "kind": "stalemate",
+  "fen": "7K/8/5k2/8/8/8/8/6q1 b - - 0 1",
+  "move_uci": "g1g6",
+  "facts": {
+   "fen_before": "7K/8/5k2/8/8/8/8/6q1 b - - 0 1",
+   "side": "black",
+   "player_move": {
+    "san": "Qg6",
+    "uci": "g1g6"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.0,
+   "eval_before": {
+    "cp": null,
+    "mate": 1
+   },
+   "eval_after": {
+    "cp": 0,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Qg7#",
+    "uci": "g1g7"
+   },
+   "best_line": [
+    "Qg7#"
+   ],
+   "refutation": [],
+   "material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": 1,
+   "threat": null,
+   "lesson": {
+    "slug": "check-mate-stalemate",
+    "title": "Шах, мат и пат"
+   },
+   "game_over": "stalemate"
+  }
+ },
+ {
+  "id": "hanging_piece_11wM1",
+  "kind": "hanging_piece",
+  "fen": "r3k2r/p1p4p/1p4p1/4qbQ1/3p2n1/1B1P4/PPP3PP/2K1R1NR b kq - 0 16",
+  "move_uci": "f5e4",
+  "facts": {
+   "fen_before": "r3k2r/p1p4p/1p4p1/4qbQ1/3p2n1/1B1P4/PPP3PP/2K1R1NR b kq - 0 16",
+   "side": "black",
+   "player_move": {
+    "san": "Be4",
+    "uci": "f5e4"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.976,
+   "eval_before": {
+    "cp": null,
+    "mate": 1
+   },
+   "eval_after": {
+    "cp": -1197,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Qxe1#",
+    "uci": "e5e1"
+   },
+   "best_line": [
+    "Qxe1#"
+   ],
+   "refutation": [
+    "Rxe4",
+    "Qxe4",
+    "dxe4",
+    "Rf8"
+   ],
+   "material": {
+    "change": -7,
+    "lost": [
+     "Q",
+     "B"
+    ],
+    "gained": [
+     "R"
+    ]
+   },
+   "missed_material": {
+    "change": 5,
+    "lost": [],
+    "gained": [
+     "R"
+    ]
+   },
+   "motifs_against": [
+    {
+     "kind": "fork",
+     "by": {
+      "square": "e4",
+      "piece": "R"
+     },
+     "targets": [
+      {
+       "square": "g4",
+       "piece": "n"
+      },
+      {
+       "square": "e5",
+       "piece": "q"
+      }
+     ],
+     "move_san": "Rxe4",
+     "material": null
+    },
+    {
+     "kind": "pin",
+     "by": {
+      "square": "e4",
+      "piece": "R"
+     },
+     "targets": [
+      {
+       "square": "e5",
+       "piece": "q"
+      },
+      {
+       "square": "e8",
+       "piece": "k"
+      }
+     ],
+     "move_san": "Rxe4",
+     "material": null
+    },
+    {
+     "kind": "hanging_piece",
+     "by": {
+      "square": "d3",
+      "piece": "P"
+     },
+     "targets": [
+      {
+       "square": "e4",
+       "piece": "b"
+      }
+     ],
+     "move_san": null,
+     "material": null
+    },
+    {
+     "kind": "losing_exchange",
+     "by": {
+      "square": "e4",
+      "piece": "b"
+     },
+     "targets": [],
+     "move_san": "Be4",
+     "material": -3
+    }
+   ],
+   "motifs_missed": [
+    {
+     "kind": "pin",
+     "by": {
+      "square": "e1",
+      "piece": "q"
+     },
+     "targets": [
+      {
+       "square": "g1",
+       "piece": "N"
+      },
+      {
+       "square": "h1",
+       "piece": "R"
+      }
+     ],
+     "move_san": "Qxe1#",
+     "material": null
+    }
+   ],
+   "allowed_mate_in": null,
+   "missed_mate_in": 1,
+   "threat": null,
+   "lesson": {
+    "slug": "pin",
+    "title": "Связка"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "hanging_piece_h95cO",
+  "kind": "hanging_piece",
+  "fen": "3r4/p3p1rk/2p1p2P/1pNqP2P/8/4Q3/PPP5/2K4R w - - 0 30",
+  "move_uci": "h6g7",
+  "facts": {
+   "fen_before": "3r4/p3p1rk/2p1p2P/1pNqP2P/8/4Q3/PPP5/2K4R w - - 0 30",
+   "side": "white",
+   "player_move": {
+    "san": "hxg7",
+    "uci": "h6g7"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 0.381,
+   "eval_before": {
+    "cp": -393,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": -2
+   },
+   "best_move": {
+    "san": "Qd3+",
+    "uci": "e3d3"
+   },
+   "best_line": [
+    "Qd3+",
+    "Kxh6",
+    "Qe3+",
+    "Kh7"
+   ],
+   "refutation": [
+    "Qxh1+",
+    "Qg1",
+    "Qxg1#"
+   ],
+   "material": {
+    "change": -9,
+    "lost": [
+     "Q"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": -1,
+    "lost": [
+     "P"
+    ],
+    "gained": []
+   },
+   "motifs_against": [
+    {
+     "kind": "hanging_piece",
+     "by": {
+      "square": "d5",
+      "piece": "q"
+     },
+     "targets": [
+      {
+       "square": "h1",
+       "piece": "R"
+      }
+     ],
+     "move_san": null,
+     "material": null
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": 2,
+   "missed_mate_in": null,
+   "threat": {
+    "move_san": "Qxh1+",
+    "mate_in": 2,
+    "material": 14
+   },
+   "lesson": {
+    "slug": "blunder-check",
+    "title": "Как не зевать: проверка перед ходом"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "fork_against_UcMVZ",
+  "kind": "fork_against",
+  "fen": "2q5/5p1k/p4QpP/1p4p1/6P1/5P2/PPK1R3/6r1 w - - 5 35",
+  "move_uci": "c2b3",
+  "facts": {
+   "fen_before": "2q5/5p1k/p4QpP/1p4p1/6P1/5P2/PPK1R3/6r1 w - - 5 35",
+   "side": "white",
+   "player_move": {
+    "san": "Kb3",
+    "uci": "c2b3"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 0.974,
+   "eval_before": {
+    "cp": -14,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": -2
+   },
+   "best_move": {
+    "san": "Kd2",
+    "uci": "c2d2"
+   },
+   "best_line": [
+    "Kd2",
+    "Qc1+",
+    "Kd3",
+    "Rd1+"
+   ],
+   "refutation": [
+    "Qc4+",
+    "Ka3",
+    "Qa4#"
+   ],
+   "material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [
+    {
+     "kind": "fork",
+     "by": {
+      "square": "c4",
+      "piece": "q"
+     },
+     "targets": [
+      {
+       "square": "e2",
+       "piece": "R"
+      },
+      {
+       "square": "b3",
+       "piece": "K"
+      }
+     ],
+     "move_san": "Qc4+",
+     "material": null
+    },
+    {
+     "kind": "skewer",
+     "by": {
+      "square": "c4",
+      "piece": "q"
+     },
+     "targets": [
+      {
+       "square": "b3",
+       "piece": "K"
+      },
+      {
+       "square": "a2",
+       "piece": "P"
+      }
+     ],
+     "move_san": "Qc4+",
+     "material": null
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": 2,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "blunder-check",
+    "title": "Как не зевать: проверка перед ходом"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "fork_against_NeDyR",
+  "kind": "fork_against",
+  "fen": "2krr3/2p2ppp/2p5/3p4/5P1q/QP6/P5P1/R4RK1 b - - 0 21",
+  "move_uci": "e8e2",
+  "facts": {
+   "fen_before": "2krr3/2p2ppp/2p5/3p4/5P1q/QP6/P5P1/R4RK1 b - - 0 21",
+   "side": "black",
+   "player_move": {
+    "san": "Re2",
+    "uci": "e8e2"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.644,
+   "eval_before": {
+    "cp": 608,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": -657,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Rd6",
+    "uci": "d8d6"
+   },
+   "best_line": [
+    "Rd6",
+    "b4",
+    "Rh6",
+    "Qh3+"
+   ],
+   "refutation": [
+    "Qa6+",
+    "Kb8",
+    "Qxe2",
+    "Rd6"
+   ],
+   "material": {
+    "change": -5,
+    "lost": [
+     "R"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [
+    {
+     "kind": "fork",
+     "by": {
+      "square": "a6",
+      "piece": "Q"
+     },
+     "targets": [
+      {
+       "square": "e2",
+       "piece": "r"
+      },
+      {
+       "square": "c8",
+       "piece": "k"
+      }
+     ],
+     "move_san": "Qa6+",
+     "material": null
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "fork",
+    "title": "Вилка"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "missed_fork_QD81A",
+  "kind": "missed_fork",
+  "fen": "r2bqrk1/6p1/2p1p3/2PpN2p/PR1P1n2/6Q1/5PPP/1R3NK1 b - - 1 26",
+  "move_uci": "a8b8",
+  "facts": {
+   "fen_before": "r2bqrk1/6p1/2p1p3/2PpN2p/PR1P1n2/6Q1/5PPP/1R3NK1 b - - 1 26",
+   "side": "black",
+   "player_move": {
+    "san": "Rb8",
+    "uci": "a8b8"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.316,
+   "eval_before": {
+    "cp": 790,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": -243,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Ne2+",
+    "uci": "f4e2"
+   },
+   "best_line": [
+    "Ne2+",
+    "Kh1",
+    "Nxg3+",
+    "hxg3",
+    "Rxf2",
+    "Nh2"
+   ],
+   "refutation": [
+    "Rxb8",
+    "Ne2+",
+    "Kh1"
+   ],
+   "material": {
+    "change": -5,
+    "lost": [
+     "R"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 7,
+    "lost": [
+     "N"
+    ],
+    "gained": [
+     "Q",
+     "P"
+    ]
+   },
+   "motifs_against": [
+    {
+     "kind": "pin",
+     "by": {
+      "square": "b8",
+      "piece": "R"
+     },
+     "targets": [
+      {
+       "square": "d8",
+       "piece": "b"
+      },
+      {
+       "square": "e8",
+       "piece": "q"
+      }
+     ],
+     "move_san": "Rxb8",
+     "material": null
+    },
+    {
+     "kind": "hanging_piece",
+     "by": {
+      "square": "b4",
+      "piece": "R"
+     },
+     "targets": [
+      {
+       "square": "b8",
+       "piece": "r"
+      }
+     ],
+     "move_san": null,
+     "material": null
+    },
+    {
+     "kind": "losing_exchange",
+     "by": {
+      "square": "b8",
+      "piece": "r"
+     },
+     "targets": [],
+     "move_san": "Rb8",
+     "material": -5
+    }
+   ],
+   "motifs_missed": [
+    {
+     "kind": "fork",
+     "by": {
+      "square": "e2",
+      "piece": "n"
+     },
+     "targets": [
+      {
+       "square": "g1",
+       "piece": "K"
+      },
+      {
+       "square": "g3",
+       "piece": "Q"
+      }
+     ],
+     "move_san": "Ne2+",
+     "material": null
+    }
+   ],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "fork",
+    "title": "Вилка"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "missed_fork_EB476",
+  "kind": "missed_fork",
+  "fen": "1k6/pp2r1pp/8/5Q2/r6P/6P1/5P1K/8 w - - 0 34",
+  "move_uci": "h4h5",
+  "facts": {
+   "fen_before": "1k6/pp2r1pp/8/5Q2/r6P/6P1/5P1K/8 w - - 0 34",
+   "side": "white",
+   "player_move": {
+    "san": "h5",
+    "uci": "h4h5"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 0.898,
+   "eval_before": {
+    "cp": 912,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": 19,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Qf8+",
+    "uci": "f5f8"
+   },
+   "best_line": [
+    "Qf8+",
+    "Kc7",
+    "Qxe7+",
+    "Kb6"
+   ],
+   "refutation": [
+    "Rae4",
+    "Qxh7",
+    "a5"
+   ],
+   "material": {
+    "change": 1,
+    "lost": [],
+    "gained": [
+     "P"
+    ]
+   },
+   "missed_material": {
+    "change": 5,
+    "lost": [],
+    "gained": [
+     "R"
+    ]
+   },
+   "motifs_against": [],
+   "motifs_missed": [
+    {
+     "kind": "fork",
+     "by": {
+      "square": "f8",
+      "piece": "Q"
+     },
+     "targets": [
+      {
+       "square": "e7",
+       "piece": "r"
+      },
+      {
+       "square": "b8",
+       "piece": "k"
+      }
+     ],
+     "move_san": "Qf8+",
+     "material": null
+    }
+   ],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "fork",
+    "title": "Вилка"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "pin_U5JhP",
+  "kind": "pin",
+  "fen": "2kr3r/pbpq4/np1p4/3Pp3/P1P1P1pp/1NP3P1/4B2P/R2QR1K1 b - - 1 23",
+  "move_uci": "h4g3",
+  "facts": {
+   "fen_before": "2kr3r/pbpq4/np1p4/3Pp3/P1P1P1pp/1NP3P1/4B2P/R2QR1K1 b - - 1 23",
+   "side": "black",
+   "player_move": {
+    "san": "hxg3",
+    "uci": "h4g3"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.011,
+   "eval_before": {
+    "cp": 182,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": -458,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Rdg8",
+    "uci": "d8g8"
+   },
+   "best_line": [
+    "Rdg8",
+    "Kf2",
+    "Qh7",
+    "Ke3"
+   ],
+   "refutation": [
+    "Bxg4",
+    "Kb8",
+    "Bxd7",
+    "gxh2+",
+    "Kh1"
+   ],
+   "material": {
+    "change": -8,
+    "lost": [
+     "Q"
+    ],
+    "gained": [
+     "P"
+    ]
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [
+    {
+     "kind": "pin",
+     "by": {
+      "square": "g4",
+      "piece": "B"
+     },
+     "targets": [
+      {
+       "square": "d7",
+       "piece": "q"
+      },
+      {
+       "square": "c8",
+       "piece": "k"
+      }
+     ],
+     "move_san": "Bxg4",
+     "material": null
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": {
+    "move_san": "Bxg4",
+    "mate_in": null,
+    "material": 6
+   },
+   "lesson": {
+    "slug": "pin",
+    "title": "Связка"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "pin_51pGE",
+  "kind": "pin",
+  "fen": "r5kr/ppp1q2p/3pb3/2b2RN1/2np4/8/PPP3PP/RNBQ2K1 w - - 0 16",
+  "move_uci": "g5h3",
+  "facts": {
+   "fen_before": "r5kr/ppp1q2p/3pb3/2b2RN1/2np4/8/PPP3PP/RNBQ2K1 w - - 0 16",
+   "side": "white",
+   "player_move": {
+    "san": "Nh3",
+    "uci": "g5h3"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.773,
+   "eval_before": {
+    "cp": 705,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": -834,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Nxe6",
+    "uci": "g5e6"
+   },
+   "best_line": [
+    "Nxe6",
+    "Qxe6",
+    "Qg4+",
+    "Qg6"
+   ],
+   "refutation": [
+    "Bxf5",
+    "Bg5",
+    "d3+"
+   ],
+   "material": {
+    "change": -5,
+    "lost": [
+     "R"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [
+     "N"
+    ],
+    "gained": [
+     "B"
+    ]
+   },
+   "motifs_against": [
+    {
+     "kind": "pin",
+     "by": {
+      "square": "f5",
+      "piece": "b"
+     },
+     "targets": [
+      {
+       "square": "c2",
+       "piece": "P"
+      },
+      {
+       "square": "b1",
+       "piece": "N"
+      }
+     ],
+     "move_san": "Bxf5",
+     "material": null
+    },
+    {
+     "kind": "hanging_piece",
+     "by": {
+      "square": "e6",
+      "piece": "b"
+     },
+     "targets": [
+      {
+       "square": "f5",
+       "piece": "R"
+      }
+     ],
+     "move_san": null,
+     "material": null
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": {
+    "move_san": "Bxf5",
+    "mate_in": null,
+    "material": 5
+   },
+   "lesson": {
+    "slug": "pin",
+    "title": "Связка"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "skewer_ZpT5Y",
+  "kind": "skewer",
+  "fen": "2r5/6pp/5pn1/1k2p3/p7/4B3/4KPPP/1R6 b - - 5 35",
+  "move_uci": "b5c4",
+  "facts": {
+   "fen_before": "2r5/6pp/5pn1/1k2p3/p7/4B3/4KPPP/1R6 b - - 5 35",
+   "side": "black",
+   "player_move": {
+    "san": "Kc4",
+    "uci": "b5c4"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.186,
+   "eval_before": {
+    "cp": 191,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": -678,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Kc6",
+    "uci": "b5c6"
+   },
+   "best_line": [
+    "Kc6",
+    "Rb6+",
+    "Kd5",
+    "Ra6"
+   ],
+   "refutation": [
+    "Rc1+",
+    "Kb3",
+    "Rxc8",
+    "Ne7"
+   ],
+   "material": {
+    "change": -5,
+    "lost": [
+     "R"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [
+    {
+     "kind": "skewer",
+     "by": {
+      "square": "c1",
+      "piece": "R"
+     },
+     "targets": [
+      {
+       "square": "c4",
+       "piece": "k"
+      },
+      {
+       "square": "c8",
+       "piece": "r"
+      }
+     ],
+     "move_san": "Rc1+",
+     "material": null
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "skewer",
+    "title": "Сквозной удар"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "skewer_mt5BG",
+  "kind": "skewer",
+  "fen": "8/2k5/2pp1p2/5Q2/P7/2P3P1/1r3KPP/1r6 w - - 5 36",
+  "move_uci": "f2f3",
+  "facts": {
+   "fen_before": "8/2k5/2pp1p2/5Q2/P7/2P3P1/1r3KPP/1r6 w - - 5 36",
+   "side": "white",
+   "player_move": {
+    "san": "Kf3",
+    "uci": "f2f3"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 0.956,
+   "eval_before": {
+    "cp": 47,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": -724,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Ke3",
+    "uci": "f2e3"
+   },
+   "best_line": [
+    "Ke3",
+    "Re1+",
+    "Kd3",
+    "Rd1+"
+   ],
+   "refutation": [
+    "Rf1+",
+    "Kg4",
+    "Rxf5",
+    "Kxf5",
+    "Rxg2",
+    "Kxf6",
+    "Rxh2",
+    "g4"
+   ],
+   "material": {
+    "change": -5,
+    "lost": [
+     "Q",
+     "P"
+    ],
+    "gained": [
+     "R"
+    ]
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [
+    {
+     "kind": "skewer",
+     "by": {
+      "square": "f1",
+      "piece": "r"
+     },
+     "targets": [
+      {
+       "square": "f3",
+       "piece": "K"
+      },
+      {
+       "square": "f5",
+       "piece": "Q"
+      }
+     ],
+     "move_san": "Rf1+",
+     "material": null
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "skewer",
+    "title": "Сквозной удар"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "discovered_attack_XSoqc",
+  "kind": "discovered_attack",
+  "fen": "r1bqkb1r/ppp1pp2/8/3Bn1p1/6P1/2N5/PPP2P1P/R2QK2R b KQkq - 1 11",
+  "move_uci": "e5g4",
+  "facts": {
+   "fen_before": "r1bqkb1r/ppp1pp2/8/3Bn1p1/6P1/2N5/PPP2P1P/R2QK2R b KQkq - 1 11",
+   "side": "black",
+   "player_move": {
+    "san": "Nxg4",
+    "uci": "e5g4"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.655,
+   "eval_before": {
+    "cp": 775,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": -546,
+    "mate": null
+   },
+   "best_move": {
+    "san": "c6",
+    "uci": "c7c6"
+   },
+   "best_line": [
+    "c6",
+    "Qe2",
+    "Bg7",
+    "Bg2"
+   ],
+   "refutation": [
+    "Bxf7+",
+    "Kxf7",
+    "Qxd8",
+    "Bg7"
+   ],
+   "material": {
+    "change": -6,
+    "lost": [
+     "Q"
+    ],
+    "gained": [
+     "B"
+    ]
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [
+    {
+     "kind": "discovered_attack",
+     "by": {
+      "square": "d1",
+      "piece": "Q"
+     },
+     "targets": [
+      {
+       "square": "d8",
+       "piece": "q"
+      }
+     ],
+     "move_san": "Bxf7+",
+     "material": null
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "discovered-attack",
+    "title": "Вскрытое нападение и двойной шах"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "discovered_attack_avUwZ",
+  "kind": "discovered_attack",
+  "fen": "rn3q1k/2p3p1/pp2pNb1/3pPr2/3P3B/7R/PPP2PP1/R5K1 w - - 0 26",
+  "move_uci": "f6g4",
+  "facts": {
+   "fen_before": "rn3q1k/2p3p1/pp2pNb1/3pPr2/3P3B/7R/PPP2PP1/R5K1 w - - 0 26",
+   "side": "white",
+   "player_move": {
+    "san": "Ng4",
+    "uci": "f6g4"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.907,
+   "eval_before": {
+    "cp": null,
+    "mate": 2
+   },
+   "eval_after": {
+    "cp": -821,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Bg5+",
+    "uci": "h4g5"
+   },
+   "best_line": [
+    "Bg5+",
+    "Bh5",
+    "Rxh5#"
+   ],
+   "refutation": [
+    "Rh5",
+    "Ne3",
+    "Kg8"
+   ],
+   "material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 3,
+    "lost": [],
+    "gained": [
+     "B"
+    ]
+   },
+   "motifs_against": [
+    {
+     "kind": "pin",
+     "by": {
+      "square": "h5",
+      "piece": "r"
+     },
+     "targets": [
+      {
+       "square": "h4",
+       "piece": "B"
+      },
+      {
+       "square": "h3",
+       "piece": "R"
+      }
+     ],
+     "move_san": "Rh5",
+     "material": null
+    }
+   ],
+   "motifs_missed": [
+    {
+     "kind": "discovered_attack",
+     "by": {
+      "square": "h3",
+      "piece": "R"
+     },
+     "targets": [
+      {
+       "square": "h8",
+       "piece": "k"
+      }
+     ],
+     "move_san": "Bg5+",
+     "material": null
+    }
+   ],
+   "allowed_mate_in": null,
+   "missed_mate_in": 2,
+   "threat": null,
+   "lesson": {
+    "slug": "discovered-attack",
+    "title": "Вскрытое нападение и двойной шах"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "back_rank_xoxyb",
+  "kind": "back_rank",
+  "fen": "6k1/5ppp/b1p2b2/1PPp4/5BQP/8/5qPK/8 b - - 0 25",
+  "move_uci": "a6b5",
+  "facts": {
+   "fen_before": "6k1/5ppp/b1p2b2/1PPp4/5BQP/8/5qPK/8 b - - 0 25",
+   "side": "black",
+   "player_move": {
+    "san": "Bxb5",
+    "uci": "a6b5"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.901,
+   "eval_before": {
+    "cp": 802,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": -2
+   },
+   "best_move": {
+    "san": "cxb5",
+    "uci": "c6b5"
+   },
+   "best_line": [
+    "cxb5",
+    "h5",
+    "b4",
+    "Bg3"
+   ],
+   "refutation": [
+    "Qc8+",
+    "Bd8",
+    "Qxd8#"
+   ],
+   "material": {
+    "change": -2,
+    "lost": [
+     "B"
+    ],
+    "gained": [
+     "P"
+    ]
+   },
+   "missed_material": {
+    "change": 1,
+    "lost": [],
+    "gained": [
+     "P"
+    ]
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": 2,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "blunder-check",
+    "title": "Как не зевать: проверка перед ходом"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "back_rank_tPjuV",
+  "kind": "back_rank",
+  "fen": "2k2r2/1p2p1R1/p2p4/2pP1q2/8/8/P1P3PP/3Q2K1 w - - 0 35",
+  "move_uci": "g7e7",
+  "facts": {
+   "fen_before": "2k2r2/1p2p1R1/p2p4/2pP1q2/8/8/P1P3PP/3Q2K1 w - - 0 35",
+   "side": "white",
+   "player_move": {
+    "san": "Rxe7",
+    "uci": "g7e7"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 0.947,
+   "eval_before": {
+    "cp": -29,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": -3
+   },
+   "best_move": {
+    "san": "Qg4",
+    "uci": "d1g4"
+   },
+   "best_line": [
+    "Qg4",
+    "Qxg4",
+    "Rxg4",
+    "Kd7"
+   ],
+   "refutation": [
+    "Qf2+",
+    "Kh1",
+    "Qf1+"
+   ],
+   "material": {
+    "change": 1,
+    "lost": [],
+    "gained": [
+     "P"
+    ]
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": 3,
+   "missed_mate_in": null,
+   "threat": {
+    "move_san": "Qf2+",
+    "mate_in": 3,
+    "material": null
+   },
+   "lesson": {
+    "slug": "blunder-check",
+    "title": "Как не зевать: проверка перед ходом"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "allowed_mate_eqeCt",
+  "kind": "allowed_mate",
+  "fen": "1QN4k/6pp/8/2p5/3bB3/3P2P1/1p4KP/5r2 b - - 2 39",
+  "move_uci": "b2b1q",
+  "facts": {
+   "fen_before": "1QN4k/6pp/8/2p5/3bB3/3P2P1/1p4KP/5r2 b - - 2 39",
+   "side": "black",
+   "player_move": {
+    "san": "b1=Q",
+    "uci": "b2b1q"
+   },
+   "classification": "good",
+   "win_chance_drop": 0.078,
+   "eval_before": {
+    "cp": -871,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": -2
+   },
+   "best_move": {
+    "san": "Rf8",
+    "uci": "f1f8"
+   },
+   "best_line": [
+    "Rf8",
+    "Qb7",
+    "b1=R",
+    "Qxb1",
+    "Rxc8",
+    "Qb7"
+   ],
+   "refutation": [
+    "Nb6+",
+    "Rf8",
+    "Qxf8#"
+   ],
+   "material": {
+    "change": 3,
+    "lost": [
+     "R"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 2,
+    "lost": [
+     "P"
+    ],
+    "gained": [
+     "N"
+    ]
+   },
+   "motifs_against": [
+    {
+     "kind": "discovered_attack",
+     "by": {
+      "square": "b8",
+      "piece": "Q"
+     },
+     "targets": [
+      {
+       "square": "h8",
+       "piece": "k"
+      }
+     ],
+     "move_san": "Nb6+",
+     "material": null
+    }
+   ],
+   "motifs_missed": [
+    {
+     "kind": "pin",
+     "by": {
+      "square": "f8",
+      "piece": "r"
+     },
+     "targets": [
+      {
+       "square": "c8",
+       "piece": "N"
+      },
+      {
+       "square": "b8",
+       "piece": "Q"
+      }
+     ],
+     "move_san": "Rf8",
+     "material": null
+    }
+   ],
+   "allowed_mate_in": 2,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": null,
+   "game_over": null
+  }
+ },
+ {
+  "id": "allowed_mate_U2NDA",
+  "kind": "allowed_mate",
+  "fen": "r7/pp1RR1pp/k1p5/8/1nN1P3/7P/1PP2rP1/1K6 w - - 0 24",
+  "move_uci": "e7g7",
+  "facts": {
+   "fen_before": "r7/pp1RR1pp/k1p5/8/1nN1P3/7P/1PP2rP1/1K6 w - - 0 24",
+   "side": "white",
+   "player_move": {
+    "san": "Rxg7",
+    "uci": "e7g7"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.035,
+   "eval_before": {
+    "cp": 19,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": -2
+   },
+   "best_move": {
+    "san": "Ne3",
+    "uci": "c4e3"
+   },
+   "best_line": [
+    "Ne3",
+    "Re2",
+    "Nd1",
+    "Nxc2",
+    "Rxb7",
+    "Rxg2",
+    "Nc3"
+   ],
+   "refutation": [
+    "Rf1+",
+    "Rd1",
+    "Rxd1#"
+   ],
+   "material": {
+    "change": -4,
+    "lost": [
+     "R"
+    ],
+    "gained": [
+     "P"
+    ]
+   },
+   "missed_material": {
+    "change": -1,
+    "lost": [
+     "P"
+    ],
+    "gained": []
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": 2,
+   "missed_mate_in": null,
+   "threat": {
+    "move_san": "Rf1+",
+    "mate_in": 2,
+    "material": 5
+   },
+   "lesson": {
+    "slug": "blunder-check",
+    "title": "Как не зевать: проверка перед ходом"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "missed_mate_POVd7",
+  "kind": "missed_mate",
+  "fen": "3r1k2/1p5p/p1n1bN1b/2p1pp2/6pP/4P1P1/PPP2P2/1K1R1BNR b - - 4 19",
+  "move_uci": "e6d7",
+  "facts": {
+   "fen_before": "3r1k2/1p5p/p1n1bN1b/2p1pp2/6pP/4P1P1/PPP2P2/1K1R1BNR b - - 4 19",
+   "side": "black",
+   "player_move": {
+    "san": "Bd7",
+    "uci": "e6d7"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.93,
+   "eval_before": {
+    "cp": null,
+    "mate": 1
+   },
+   "eval_after": {
+    "cp": -900,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Rxd1#",
+    "uci": "d8d1"
+   },
+   "best_line": [
+    "Rxd1#"
+   ],
+   "refutation": [
+    "Rxd7",
+    "Bg7",
+    "Nxh7+",
+    "Kg8"
+   ],
+   "material": {
+    "change": -4,
+    "lost": [
+     "B",
+     "P"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 5,
+    "lost": [],
+    "gained": [
+     "R"
+    ]
+   },
+   "motifs_against": [
+    {
+     "kind": "losing_exchange",
+     "by": {
+      "square": "d7",
+      "piece": "b"
+     },
+     "targets": [],
+     "move_san": "Bd7",
+     "material": -3
+    }
+   ],
+   "motifs_missed": [
+    {
+     "kind": "fork",
+     "by": {
+      "square": "d1",
+      "piece": "r"
+     },
+     "targets": [
+      {
+       "square": "b1",
+       "piece": "K"
+      },
+      {
+       "square": "f1",
+       "piece": "B"
+      }
+     ],
+     "move_san": "Rxd1#",
+     "material": null
+    },
+    {
+     "kind": "back_rank",
+     "by": {
+      "square": "d1",
+      "piece": "r"
+     },
+     "targets": [
+      {
+       "square": "b1",
+       "piece": "K"
+      }
+     ],
+     "move_san": "Rxd1#",
+     "material": null
+    }
+   ],
+   "allowed_mate_in": null,
+   "missed_mate_in": 1,
+   "threat": null,
+   "lesson": {
+    "slug": "fork",
+    "title": "Вилка"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "missed_mate_p0THC",
+  "kind": "missed_mate",
+  "fen": "rnbk1bnr/ppp1p1p1/4q2p/1B5Q/4pP2/2N5/PPP3PP/R1B1K2R w KQ - 0 11",
+  "move_uci": "b5a4",
+  "facts": {
+   "fen_before": "rnbk1bnr/ppp1p1p1/4q2p/1B5Q/4pP2/2N5/PPP3PP/R1B1K2R w KQ - 0 11",
+   "side": "white",
+   "player_move": {
+    "san": "Ba4",
+    "uci": "b5a4"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.831,
+   "eval_before": {
+    "cp": null,
+    "mate": 1
+   },
+   "eval_after": {
+    "cp": -647,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Qe8#",
+    "uci": "h5e8"
+   },
+   "best_line": [
+    "Qe8#"
+   ],
+   "refutation": [
+    "Nf6",
+    "Qb5",
+    "Qa6"
+   ],
+   "material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [],
+   "motifs_missed": [
+    {
+     "kind": "fork",
+     "by": {
+      "square": "e8",
+      "piece": "Q"
+     },
+     "targets": [
+      {
+       "square": "d8",
+       "piece": "k"
+      },
+      {
+       "square": "f8",
+       "piece": "b"
+      }
+     ],
+     "move_san": "Qe8#",
+     "material": null
+    },
+    {
+     "kind": "pin",
+     "by": {
+      "square": "e8",
+      "piece": "Q"
+     },
+     "targets": [
+      {
+       "square": "e7",
+       "piece": "p"
+      },
+      {
+       "square": "e6",
+       "piece": "q"
+      }
+     ],
+     "move_san": "Qe8#",
+     "material": null
+    }
+   ],
+   "allowed_mate_in": null,
+   "missed_mate_in": 1,
+   "threat": null,
+   "lesson": {
+    "slug": "fork",
+    "title": "Вилка"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "mate_threat_ignored_cbcYQ",
+  "kind": "mate_threat_ignored",
+  "fen": "r3kb1r/pppb2pp/2nq4/3NppB1/2Q5/1B1p4/PPP2PPP/R3K2R b KQkq - 1 14",
+  "move_uci": "h7h6",
+  "facts": {
+   "fen_before": "r3kb1r/pppb2pp/2nq4/3NppB1/2Q5/1B1p4/PPP2PPP/R3K2R b KQkq - 1 14",
+   "side": "black",
+   "player_move": {
+    "san": "h6",
+    "uci": "h7h6"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 0.793,
+   "eval_before": {
+    "cp": -114,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": -2
+   },
+   "best_move": {
+    "san": "d2+",
+    "uci": "d3d2"
+   },
+   "best_line": [
+    "d2+",
+    "Kd1",
+    "Bc8",
+    "Nf6+"
+   ],
+   "refutation": [
+    "Nxc7+",
+    "Qxc7",
+    "Qf7#"
+   ],
+   "material": {
+    "change": 2,
+    "lost": [
+     "P"
+    ],
+    "gained": [
+     "N"
+    ]
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": 2,
+   "missed_mate_in": null,
+   "threat": {
+    "move_san": "Nxc7+",
+    "mate_in": 2,
+    "material": null
+   },
+   "lesson": {
+    "slug": "blunder-check",
+    "title": "Как не зевать: проверка перед ходом"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "mate_threat_ignored_ChqY4",
+  "kind": "mate_threat_ignored",
+  "fen": "1k5r/1Pp1b3/p7/5pp1/2QPp1b1/2N1P1P1/PP3RPr/R4KNq w - - 1 24",
+  "move_uci": "c4a6",
+  "facts": {
+   "fen_before": "1k5r/1Pp1b3/p7/5pp1/2QPp1b1/2N1P1P1/PP3RPr/R4KNq w - - 1 24",
+   "side": "white",
+   "player_move": {
+    "san": "Qxa6",
+    "uci": "c4a6"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.0,
+   "eval_before": {
+    "cp": 0,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": -2
+   },
+   "best_move": {
+    "san": "Ne2",
+    "uci": "c3e2"
+   },
+   "best_line": [
+    "Ne2",
+    "Kxb7",
+    "Rc1",
+    "Bd6"
+   ],
+   "refutation": [
+    "Qxg1+",
+    "Kxg1",
+    "Rh1#"
+   ],
+   "material": {
+    "change": 7,
+    "lost": [
+     "N"
+    ],
+    "gained": [
+     "Q",
+     "P"
+    ]
+   },
+   "missed_material": {
+    "change": -1,
+    "lost": [
+     "P"
+    ],
+    "gained": []
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": 2,
+   "missed_mate_in": null,
+   "threat": {
+    "move_san": "Qxg1+",
+    "mate_in": 2,
+    "material": null
+   },
+   "lesson": {
+    "slug": "blunder-check",
+    "title": "Как не зевать: проверка перед ходом"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "losing_exchange_XZ4Gs",
+  "kind": "losing_exchange",
+  "fen": "r6k/R6p/5pp1/p2bp3/B6r/1PR4P/6P1/7K w - - 4 41",
+  "move_uci": "b3b4",
+  "facts": {
+   "fen_before": "r6k/R6p/5pp1/p2bp3/B6r/1PR4P/6P1/7K w - - 4 41",
+   "side": "white",
+   "player_move": {
+    "san": "b4",
+    "uci": "b3b4"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.62,
+   "eval_before": {
+    "cp": 461,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": -898,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Rxa8+",
+    "uci": "a7a8"
+   },
+   "best_line": [
+    "Rxa8+",
+    "Bxa8",
+    "Rc8+",
+    "Kg7"
+   ],
+   "refutation": [
+    "Rxa7",
+    "Bb3",
+    "Bxb3",
+    "g4"
+   ],
+   "material": {
+    "change": -8,
+    "lost": [
+     "R",
+     "B"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 0,
+    "lost": [],
+    "gained": []
+   },
+   "motifs_against": [
+    {
+     "kind": "hanging_piece",
+     "by": {
+      "square": "a8",
+      "piece": "r"
+     },
+     "targets": [
+      {
+       "square": "a7",
+       "piece": "R"
+      }
+     ],
+     "move_san": null,
+     "material": null
+    },
+    {
+     "kind": "losing_exchange",
+     "by": {
+      "square": "b4",
+      "piece": "P"
+     },
+     "targets": [],
+     "move_san": "b4",
+     "material": -1
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": {
+    "move_san": "Rxa7",
+    "mate_in": null,
+    "material": 5
+   },
+   "lesson": {
+    "slug": "blunder-check",
+    "title": "Как не зевать: проверка перед ходом"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "losing_exchange_v0LWy",
+  "kind": "losing_exchange",
+  "fen": "1r3rk1/p1pqbppp/2n5/4N3/Q7/2PP1P2/PP3P1P/R1B1K2R b KQ - 0 15",
+  "move_uci": "d7d4",
+  "facts": {
+   "fen_before": "1r3rk1/p1pqbppp/2n5/4N3/Q7/2PP1P2/PP3P1P/R1B1K2R b KQ - 0 15",
+   "side": "black",
+   "player_move": {
+    "san": "Qd4",
+    "uci": "d7d4"
+   },
+   "classification": "blunder",
+   "win_chance_drop": 1.692,
+   "eval_before": {
+    "cp": 554,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": -872,
+    "mate": null
+   },
+   "best_move": {
+    "san": "Nxe5",
+    "uci": "c6e5"
+   },
+   "best_line": [
+    "Nxe5",
+    "Qxd7",
+    "Nxd7",
+    "d4"
+   ],
+   "refutation": [
+    "cxd4",
+    "Nxe5",
+    "dxe5",
+    "Rfd8"
+   ],
+   "material": {
+    "change": -9,
+    "lost": [
+     "Q"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": 3,
+    "lost": [],
+    "gained": [
+     "N"
+    ]
+   },
+   "motifs_against": [
+    {
+     "kind": "hanging_piece",
+     "by": {
+      "square": "c3",
+      "piece": "P"
+     },
+     "targets": [
+      {
+       "square": "d4",
+       "piece": "q"
+      }
+     ],
+     "move_san": null,
+     "material": null
+    },
+    {
+     "kind": "losing_exchange",
+     "by": {
+      "square": "d4",
+      "piece": "q"
+     },
+     "targets": [],
+     "move_san": "Qd4",
+     "material": -9
+    }
+   ],
+   "motifs_missed": [
+    {
+     "kind": "discovered_attack",
+     "by": {
+      "square": "d7",
+      "piece": "q"
+     },
+     "targets": [
+      {
+       "square": "a4",
+       "piece": "Q"
+      }
+     ],
+     "move_san": "Nxe5",
+     "material": null
+    }
+   ],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": {
+    "slug": "blunder-check",
+    "title": "Как не зевать: проверка перед ходом"
+   },
+   "game_over": null
+  }
+ },
+ {
+  "id": "good_move_e7L3g",
+  "kind": "good_move",
+  "fen": "6k1/4Nnb1/p2pQ3/1pp5/4P2q/1P5P/P1P2r2/6RK b - - 1 29",
+  "move_uci": "g8h7",
+  "facts": {
+   "fen_before": "6k1/4Nnb1/p2pQ3/1pp5/4P2q/1P5P/P1P2r2/6RK b - - 1 29",
+   "side": "black",
+   "player_move": {
+    "san": "Kh7",
+    "uci": "g8h7"
+   },
+   "classification": "good",
+   "win_chance_drop": 0.041,
+   "eval_before": {
+    "cp": -1052,
+    "mate": null
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": -2
+   },
+   "best_move": {
+    "san": "Qxe7",
+    "uci": "h4e7"
+   },
+   "best_line": [
+    "Qxe7",
+    "Qxe7",
+    "Rf3",
+    "Qd7"
+   ],
+   "refutation": [
+    "Qg6+",
+    "Kh8",
+    "Qxg7#"
+   ],
+   "material": {
+    "change": -3,
+    "lost": [
+     "B"
+    ],
+    "gained": []
+   },
+   "missed_material": {
+    "change": -6,
+    "lost": [
+     "Q"
+    ],
+    "gained": [
+     "N"
+    ]
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": 2,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": null,
+   "game_over": null
+  }
+ },
+ {
+  "id": "best_move_H5Dzv",
+  "kind": "best_move",
+  "fen": "r1b2rk1/pp3ppp/8/2b1P3/2P3n1/1PNp2P1/P2P2BP/R1BQ1RqK w - - 7 18",
+  "move_uci": "f1g1",
+  "facts": {
+   "fen_before": "r1b2rk1/pp3ppp/8/2b1P3/2P3n1/1PNp2P1/P2P2BP/R1BQ1RqK w - - 7 18",
+   "side": "white",
+   "player_move": {
+    "san": "Rxg1",
+    "uci": "f1g1"
+   },
+   "classification": "best",
+   "win_chance_drop": 0.0,
+   "eval_before": {
+    "cp": null,
+    "mate": -1
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": -1
+   },
+   "best_move": {
+    "san": "Rxg1",
+    "uci": "f1g1"
+   },
+   "best_line": [
+    "Rxg1",
+    "Nf2#"
+   ],
+   "refutation": [
+    "Nf2#"
+   ],
+   "material": {
+    "change": 9,
+    "lost": [],
+    "gained": [
+     "Q"
+    ]
+   },
+   "missed_material": {
+    "change": 9,
+    "lost": [],
+    "gained": [
+     "Q"
+    ]
+   },
+   "motifs_against": [
+    {
+     "kind": "fork",
+     "by": {
+      "square": "f2",
+      "piece": "n"
+     },
+     "targets": [
+      {
+       "square": "d1",
+       "piece": "Q"
+      },
+      {
+       "square": "h1",
+       "piece": "K"
+      }
+     ],
+     "move_san": "Nf2#",
+     "material": null
+    }
+   ],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": null,
+   "game_over": null
+  }
+ },
+ {
+  "id": "best_move_tsxlv",
+  "kind": "best_move",
+  "fen": "r1b2rk1/pppn1pp1/3p3p/2b1pN2/4P1Pq/P2P1B1P/1PPB1P2/R2QK2R b KQ - 4 15",
+  "move_uci": "h4f2",
+  "facts": {
+   "fen_before": "r1b2rk1/pppn1pp1/3p3p/2b1pN2/4P1Pq/P2P1B1P/1PPB1P2/R2QK2R b KQ - 4 15",
+   "side": "black",
+   "player_move": {
+    "san": "Qxf2#",
+    "uci": "h4f2"
+   },
+   "classification": "best",
+   "win_chance_drop": 0.0,
+   "eval_before": {
+    "cp": null,
+    "mate": 1
+   },
+   "eval_after": {
+    "cp": null,
+    "mate": 0
+   },
+   "best_move": {
+    "san": "Qxf2#",
+    "uci": "h4f2"
+   },
+   "best_line": [
+    "Qxf2#"
+   ],
+   "refutation": [],
+   "material": {
+    "change": 1,
+    "lost": [],
+    "gained": [
+     "P"
+    ]
+   },
+   "missed_material": {
+    "change": 1,
+    "lost": [],
+    "gained": [
+     "P"
+    ]
+   },
+   "motifs_against": [],
+   "motifs_missed": [],
+   "allowed_mate_in": null,
+   "missed_mate_in": null,
+   "threat": null,
+   "lesson": null,
+   "game_over": "checkmate"
+  }
+ }
+]

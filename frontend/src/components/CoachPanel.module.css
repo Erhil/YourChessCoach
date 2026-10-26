@@ -1,0 +1,28 @@
+.panel {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+.panel p {
+  margin: 0;
+}
+.panel a {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+}
+.source {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted, inherit);
+  font-size: 0.75em;
+}
+.show {
+  display: block;
+  min-height: 44px;
+  min-width: 44px;
+  margin-top: 8px;
+}

@@ -1,0 +1,19 @@
+# Example systemd unit. Replace USER and the path, then see "Autostart" in README.md.
+# User unit:   copy to ~/.config/systemd/user/chess-coach.service, WantedBy=default.target
+# System unit: copy to /etc/systemd/system/chess-coach.service, WantedBy=multi-user.target
+[Unit]
+Description=Chess coach
+After=network.target
+
+[Service]
+WorkingDirectory=/home/USER/chess-coach
+Environment=APP_PORT=6355
+Environment=APP_HOST=0.0.0.0
+ExecStart=/home/USER/chess-coach/.venv/bin/python scripts/run.py --no-build
+Restart=on-failure
+RestartSec=5
+# Only for a system unit:
+# User=USER
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,110 @@
+:root {
+  --bg: #f6f6f3;
+  --surface: #ffffff;
+  --text: #1d1d1b;
+  --muted: #5f5f5a;
+  --border: #d8d8d2;
+  --accent: #2f6f4f;
+  --accent-text: #ffffff;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #161715;
+    --surface: #1f201e;
+    --text: #ecece6;
+    --muted: #a3a39c;
+    --border: #353632;
+    --accent: #5fb386;
+    --accent-text: #0f1a14;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #161715;
+  --surface: #1f201e;
+  --text: #ecece6;
+  --muted: #a3a39c;
+  --border: #353632;
+  --accent: #5fb386;
+  --accent-text: #0f1a14;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  overflow-x: clip; /* not hidden: hidden makes body a scroll container and breaks the sticky nav */
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 8px;
+}
+p {
+  margin: 0 0 8px;
+}
+.muted {
+  color: var(--muted);
+}
+
+button,
+a,
+select,
+label.choice {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+a {
+  color: var(--accent); /* links in the app colour, not the browser blue; both themes */
+}
+button,
+select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 16px;
+}
+label.choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%; /* in a wrapping flex row a long option would push the label past the gutter */
+}
+label.choice select {
+  min-width: 0; /* a long option must not push the select past the screen edge */
+}
+input[type='radio'] {
+  width: 24px;
+  height: 24px;
+  touch-action: manipulation;
+}
+
+/* The short award animation (no sound). Off with the «Анимация наград» switch or «reduce motion». */
+.pop {
+  animation: pop 0.5s ease-out;
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pop {
+    animation: none;
+  }
+}

@@ -1,0 +1,67 @@
+.layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  align-items: start;
+}
+.board {
+  width: 100%;
+  max-width: 360px;
+  pointer-events: none;
+}
+.cards {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+}
+.card {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.card h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+.card p {
+  margin: 0;
+}
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.buttons button,
+.table button {
+  min-height: 44px;
+  padding: 8px 16px;
+}
+.tableWrap {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th,
+.table td {
+  padding: 8px 4px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.table td:nth-child(n + 2):not(:last-child),
+.table th:nth-child(n + 2):not(:last-child) {
+  text-align: right;
+}
+.mark {
+  color: var(--accent);
+  font-weight: 600;
+}
+@media (max-width: 700px) {
+  .layout,
+  .cards {
+    grid-template-columns: 1fr;
+  }
+}

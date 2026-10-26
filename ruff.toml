@@ -1,0 +1,4 @@
+# Project-wide ruff settings (scripts/); backend/ has the same in backend/pyproject.toml.
+# Keeps lint results independent of a user-level ruff config on the machine.
+line-length = 100
+target-version = "py311"

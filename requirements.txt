@@ -1,0 +1,6 @@
+# Runtime packages of the backend and the puzzle import (pyarrow); setup.py installs them.
+fastapi==0.162.0
+uvicorn==0.54.0
+chess==1.11.2
+httpx==0.28.1
+pyarrow==26.0.0
