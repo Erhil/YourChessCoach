@@ -47,6 +47,8 @@ export default function SettingsSection() {
       {health !== undefined && (
         <p className="muted">
           {health ? 'Сервер: работает' : 'Сервер: нет связи'}
+          {'. '}Тренер: {health?.llm?.status === 'ready' ? `модель ${health.llm.model} установлена` : health?.llm?.status === 'model_missing' ? `модель ${health.llm.model} не установлена` : health?.llm?.status === 'unreachable' ? 'нет связи с Ollama' : 'шаблоны'}
+          {'. '}Резервная копия: {!health?.backup ? 'статус неизвестен' : health.backup.error ? 'ошибка сохранения' : 'по расписанию'}
           {'. '}Stockfish: {health?.engines?.stockfish.available ? 'найден' : 'не найден'}
         </p>
       )}

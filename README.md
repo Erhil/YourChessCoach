@@ -42,6 +42,7 @@ The chess engine computes. The app renders chess claims from trusted facts and l
 ## Features
 
 - **Today.** A short training plan with three daily tasks and check marks; you can replace one task a day.
+  Plan themes rotate. Recent results and hints adjust the puzzle target from 3 to 7; themes with few attempts remain provisional.
   A week goal of 3, 4 or 5 active days, and a "One puzzle" button for days with little time.
   After a break of three days or more, the app welcomes you back without a list of missed days.
 - **Play.** You play against a human-like opponent: Maia neural networks through lc0, levels 800 to 1900.
@@ -50,12 +51,14 @@ The chess engine computes. The app renders chess claims from trusted facts and l
   A game with takebacks or coach hints is saved as a training game: its result does not count in wins and losses.
 - **Puzzles.** About 350,000 puzzles from the Lichess puzzle database, from rating 400 to 2400.
   You get an Elo rating, overall and for each theme. After a wrong move, the coach explains it and shows the solution.
+  Unsent results stay on the device and can be retried without changing the rating twice.
 - **Lessons.** 31 lessons with interactive positions: from how the pieces move to rook endgames, plus a section on openings.
   A move that the engine rates as equal to the best move counts as correct, and so does any mate.
 - **Game review.** Review a saved game or a pasted PGN: marks ?!, ? and ?? on moves, and up to five key moments with explanations.
   A click on the opening name opens an opening card with the main line and puzzles for it.
 - **Mistakes deck.** Your blunders from games, mistakes from reviews and failed puzzles become cards for spaced repetition.
-  The engine checks each answer. A card is learned after three correct answers in a row, and the app shows at most 10 reviews a day.
+  The engine checks each answer. Three correct answers in a row mark a learned milestone; later reviews continue at longer intervals.
+  The app shows at most 10 reviews a day. Later the plan offers a different puzzle on the same motif as practice, without claiming measured skill transfer.
 - **Profile.** Puzzle rating chart, themes from weak to strong, blunders per 10 moves, an activity calendar, 16 achievements and the settings.
   The blunder rate uses saved games with a complete analysis. The profile shows how many games it includes.
 - **Model comparison.** A blind test of LLM explanations for the administrator: you see two anonymous texts for one mistake and vote.
@@ -279,6 +282,8 @@ Restart the app after a change.
 | `LLM_BASE_URL` | `http://localhost:11434` | Address of the Ollama server. |
 | `LLM_MODEL` | `qwen3.5:4b` | Default model. A model chosen in "Model comparison" overrides it. |
 | `LLM_TIMEOUT_S` | `20` | Timeout for one Ollama request, in seconds. Lesson questions use selection and verification requests. |
+| `BACKUP_INTERVAL_S` | `21600` | Backup interval for the running database, in seconds. |
+| `BACKUP_DIR` | `backups` next to the database | Snapshot directory; it can be on another disk. |
 | `COOKIE_SECURE` | `false`, or `true` with a certificate | Send cookies only over HTTPS. |
 | `APP_SSL_CERTFILE` | empty | Path to the certificate (PEM). With the key file, the server uses HTTPS. |
 | `APP_SSL_KEYFILE` | empty | Path to the private key (PEM). |
@@ -575,15 +580,20 @@ Lessons are Markdown files that the app shows as HTML without sanitizing. Add le
 4. Start the app.
 
 The database `data/app.db` holds all users and their progress.
-At each start, the server first copies the database to `data/backups/` and keeps the last 7 copies.
+The server backs up the database before migrations, then every 6 hours, and retains the last 7 snapshots.
+Each snapshot uses the SQLite backup API and passes an integrity check. Backup errors appear in settings and the server log.
+The default directory is `data/backups/`. Set `BACKUP_DIR` in `.env` and restart the app to use another disk.
 
 To restore a copy:
 
-1. Stop the app.
-2. Copy a file from `data/backups/` over `data/app.db`.
-3. Start the app.
+1. Check the selected snapshot: `python scripts/backup.py check data/backups/snapshot-name.db`.
+2. Restore into a new file: `python scripts/backup.py restore data/backups/snapshot-name.db data/restored.db`.
+   This checks integrity and reads restored tables. It never replaces an existing target.
+3. Stop the app, preserve the current `data/app.db`, and replace it with the checked `data/restored.db`.
+4. Start the app and check users and progress.
 
-The copies are on the same disk as the database. From time to time, stop the app and copy `data/app.db` to another disk.
+Snapshots remain on the same disk until an external directory is configured.
+For a separate consistent snapshot, use `python scripts/backup.py create data/app.db data/manual-copy.db`.
 
 To move the app to another computer, copy `data/app.db` together with the code. `setup.py` downloads the rest again.
 
@@ -612,6 +622,20 @@ To move the app to another computer, copy `data/app.db` together with the code. 
 `check.py` runs ruff (lint and format), pytest for the backend, the TypeScript type check, eslint, vitest, the frontend build and the Playwright end-to-end tests.
 The end-to-end tests run in desktop Chromium and in the iPhone 13 Mini, iPad (gen 11) and iPad (gen 11) landscape profiles.
 The last line of the output is `CHECK: PASS` or `CHECK: FAIL (...)`.
+
+Run the real Ollama answer-quality check separately:
+`python scripts/evaluate_coach.py --model qwen3.5:4b --repeat 3 --output data/bench/lesson-quality.json`.
+The set includes supported, absent, compound, and reason questions.
+The report counts wrong accepted answers and unnecessary refusals separately; either makes the command fail.
+This check needs a running Ollama and is separate from the fast tests.
+
+Measure a specific machine: `python scripts/benchmark_runtime.py --machine target --model qwen3.5:4b --trials 25 --output data/bench/runtime-target.json`.
+Use `--machine development` on the development PC. The script uses an isolated temporary database, an actual lesson, and a legal 40-ply game.
+The report includes settings, latency, successful sample counts, and errors. The first request is not labelled a cold model start.
+A three-sample run checks functionality; it does not establish normal latency or a reliable p95.
+Run the command on the laptop itself to measure laptop performance.
+
+Playwright profiles do not replace physical iPhone and iPad checks. On each device, check dragging, returning from the background, and result delivery after a Wi-Fi interruption.
 
 The project layout:
 

@@ -5,7 +5,6 @@ import {
   getNextPuzzle,
   getPuzzleRating,
   getPuzzleThemes,
-  sendAttempt,
   type AttemptResult,
   type Puzzle,
   type PuzzleTheme,
@@ -13,6 +12,7 @@ import {
 import { getPuzzleOpenings, type PuzzleOpening } from '../api/openings'
 import { lineArrows } from '../chess/arrows'
 import { splitUci, sleep, toUci } from '../chess/notation'
+import { enqueueAttempt, deliverAttempt, newAttemptId } from './resultQueue'
 import { loadPuzzle, storePuzzle } from './puzzleStore'
 import type { Move } from '../components/Board'
 
@@ -41,6 +41,7 @@ export function usePuzzle() {
   const [coach, setCoach] = useState<{ text: string; source?: string } | undefined>()
   const run = useRef(0) // a newer run cancels the older timers
   const hintsRef = useRef(0)
+  const attemptId = useRef(newAttemptId())
 
   const base = useMemo(() => {
     const chess = new Chess(p?.fen)
@@ -61,21 +62,25 @@ export function usePuzzle() {
   const finish = useCallback(async (id: string, solved: boolean) => {
     const token = run.current
     storePuzzle(null)
+    const entry = enqueueAttempt(id, solved, hintsRef.current > 0, attemptId.current)
     try {
-      const r = await sendAttempt(id, solved, hintsRef.current > 0)
+      const r = await deliverAttempt(entry)
       if (run.current !== token) return
       setResult(r)
       setRating(Math.round(r.rating_after))
     } catch {
-      /* the rating change is not shown */
+      /* The global result queue shows the failure and offers retry. */
     }
   }, [])
 
   const load = useCallback(async (th: string, op: string, keep = false) => {
     const t = ++run.current
     try {
-      const pz = (keep && loadPuzzle(th, op)) || (await getNextPuzzle(th, op))
+      const exclude = new URLSearchParams(window.location.search).get('exclude') ?? ''
+      const stored = keep ? loadPuzzle(th, op) : null
+      const pz = (stored && stored.id !== exclude ? stored : null) || (await getNextPuzzle(th, op, exclude))
       if (run.current !== t) return
+      attemptId.current = newAttemptId()
       storePuzzle(pz, th, op)
       setP(pz)
       setPhase('opp')

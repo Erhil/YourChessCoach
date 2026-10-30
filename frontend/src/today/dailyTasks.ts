@@ -16,7 +16,7 @@ export interface TaskInput {
   /** Deck cards due now. */
   due: number
   /** The puzzles link and text, as the page chooses the theme. */
-  puzzles: { to: string; text: string }
+  puzzles: { to: string; text: string; target?: number }
   lesson: { slug: string; title: string } | null
 }
 
@@ -29,7 +29,7 @@ export function candidates({ today, due, puzzles, lesson }: TaskInput): Task[] {
   const list: Task[] = []
   if (due > 0 || today.cards > 0)
     list.push(task('cards', '/mistakes', 'Повторить ошибки', '~5 мин', today.cards, Math.min(5, today.cards + due)))
-  list.push(task('puzzles', puzzles.to, puzzles.text, '~10 мин', today.puzzles, 5))
+  list.push(task('puzzles', puzzles.to, puzzles.text, '~10 мин', today.puzzles, puzzles.target ?? 5))
   if (lesson)
     list.push(task('lesson', `/lessons/${lesson.slug}`, `Следующий урок: ${lesson.title}`, '~10 мин', today.lesson_positions > 0 ? 1 : 0, 1))
   list.push(task('game', '/play', 'Сыграть партию', '~15 мин', today.games > 0 ? 1 : 0, 1))
@@ -98,4 +98,11 @@ export function storeSwap(s: Swap) {
   } catch {
     /* the swap lasts until reload */
   }
+}
+
+/** Rotate valid coach focus themes by local calendar day. */
+export function focusTheme(focus: string[], valid: string[], date: string): string | null {
+  const keys = focus.filter((key) => valid.includes(key))
+  const day = Math.floor(Date.parse(date) / 86400000)
+  return keys.length && Number.isFinite(day) ? keys[day % keys.length] : null
 }

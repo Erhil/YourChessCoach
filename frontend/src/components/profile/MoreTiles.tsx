@@ -31,9 +31,9 @@ export function DeckTile({ m, next }: { m: Progress['mistakes']; next: NextMista
   return (
     <Tile label="Колода" value={next ? `${deckLeft(next)} на сегодня` : <NoData loading={next === undefined} />}>
       <p className="muted">
-        усвоено {m.learned} из {m.total}
+        три правильных повторения: {m.learned} из {m.total}
       </p>
-      <Track done={m.learned} total={m.total} label="Усвоено карточек" />
+      <Track done={m.learned} total={m.total} label="Карточки с тремя правильными повторениями" />
     </Tile>
   )
 }

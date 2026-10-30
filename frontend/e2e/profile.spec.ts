@@ -48,7 +48,7 @@ test.describe('own user', () => {
       await expect(tile('Темы')).toContainText('По первым попыткам')
     }
     await expect(tile('Колода')).toContainText('0 на сегодня')
-    await expect(tile('Колода')).toContainText('усвоено 0 из 0')
+    await expect(tile('Колода')).toContainText('три правильных повторения: 0 из 0')
     await expect(tile('Уроки')).toContainText(`0 из ${p.lessons.total}`)
     await expect(tile('Достижения')).toContainText(`1 из ${catalogue}`)
     await expect(tile('Достижения')).toContainText('Последнее: Первая задача')

@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -44,3 +45,11 @@ def tool(name: str) -> str:
     if not found:
         sys.exit(f"'{name}' not found in PATH")
     return found
+
+
+def use_project_python() -> None:
+    """Run a CLI with project dependencies while retaining its process context."""
+    python = venv_python()
+    if Path(sys.prefix).resolve() == VENV.resolve() or not python.is_file():
+        return
+    raise SystemExit(subprocess.call([str(python), *sys.argv]))

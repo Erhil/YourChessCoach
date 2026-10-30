@@ -135,7 +135,7 @@ def test_migration_11_gives_old_games_zero(tmp_path):
     raw.close()
     migrate(path)
     raw = sqlite3.connect(path)
-    assert raw.execute("PRAGMA user_version").fetchone()[0] == len(MIGRATIONS) == 13
+    assert raw.execute("PRAGMA user_version").fetchone()[0] == len(MIGRATIONS)
     assert raw.execute("SELECT takebacks, hints FROM games").fetchall() == [(0, 0)]
     raw.close()
 

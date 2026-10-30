@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import nullcontext
 from typing import Literal
 
 import chess
@@ -31,7 +32,8 @@ def add_card(
     """Insert a card due now. Return (id, created); a known (source, ref) is not added again."""
     best_san = chess.Board(fen).san(chess.Move.from_uci(best_uci))
     now = now_utc()
-    with db:
+    # Keep card creation inside the caller transaction, when one exists.
+    with nullcontext() if db.in_transaction else db:
         cur = db.execute(
             "INSERT OR IGNORE INTO mistakes (user_id, source, ref, fen, best_uci, best_san, classification,"
             " motif, played_uci, created_at, due_at, reviews, lapses)"
@@ -79,6 +81,7 @@ class PlayCard(BaseModel):
 
 
 class Answer(BaseModel):
+    review_version: int = Field(0, ge=0)
     uci: str = Field(max_length=10)
 
 
@@ -111,7 +114,7 @@ def next_card(db: Db, user_id: UserId, tz: int | None = Tz) -> dict:
         "SELECT COUNT(*) FROM card_reviews WHERE user_id = ? AND created_at >= ? AND created_at < ?",
         (user_id, start, end),
     ).fetchone()[0]
-    where = "user_id = ? AND due_at <= ? AND learned_at IS NULL"
+    where = "user_id = ? AND due_at <= ?"
     due = db.execute(f"SELECT COUNT(*) FROM mistakes WHERE {where}", (user_id, now)).fetchone()[0]
     row = None
     if reviewed < DAILY_LIMIT:
@@ -124,6 +127,7 @@ def next_card(db: Db, user_id: UserId, tz: int | None = Tz) -> dict:
         played = row["played_uci"]
         card = {
             "id": row["id"],
+            "review_version": row["reviews"],
             "fen": row["fen"],
             "side": "white" if board.turn == chess.WHITE else "black",
             "source": row["source"],
@@ -135,12 +139,16 @@ def next_card(db: Db, user_id: UserId, tz: int | None = Tz) -> dict:
 
 
 @router.post("/{card_id}/answer", dependencies=ENGINE_HEAVY)
-def answer(card_id: int, body: Answer, request: Request, db: Db, user_id: UserId) -> dict:
+def answer(
+    card_id: int, body: Answer, request: Request, db: Db, user_id: UserId, tz: int | None = Tz
+) -> dict:
     row = db.execute(
         "SELECT * FROM mistakes WHERE id = ? AND user_id = ?", (card_id, user_id)
     ).fetchone()
     if row is None:
         raise HTTPException(404, "Card not found")
+    if row["reviews"] != body.review_version or row["due_at"] > now_utc():
+        raise HTTPException(409, "Карточка уже отвечена или ещё не пришло время повторения")
     board, move = _board(row["fen"], body.uci)
     try:
         facts = build_facts(request.app.state.pool, board, move, request.app.state.settings)
@@ -150,11 +158,30 @@ def answer(card_id: int, body: Answer, request: Request, db: Db, user_id: UserId
     correct = body.uci == row["best_uci"] or facts.classification in ("best", "good")
     streak, due_at, learned = schedule(row["streak"], correct)
     with db:
-        db.execute(
+        db.execute("BEGIN IMMEDIATE")
+        tz = server_tz() if tz is None else tz
+        start, end = local_day_utc(local_today(now_utc(), tz), tz)
+        reviewed = db.execute(
+            "SELECT COUNT(*) FROM card_reviews WHERE user_id = ? AND created_at >= ? AND created_at < ?",
+            (user_id, start, end),
+        ).fetchone()[0]
+        if reviewed >= DAILY_LIMIT:
+            raise HTTPException(409, "Дневной лимит повторений достигнут")
+        updated = db.execute(
             "UPDATE mistakes SET streak = ?, due_at = ?, learned_at = ?, reviews = reviews + 1,"
-            " lapses = lapses + ? WHERE id = ?",
-            (streak, due_at, due_at if learned else None, 0 if correct else 1, card_id),
+            " lapses = lapses + ? WHERE id = ? AND reviews = ? AND due_at <= ?",
+            (
+                streak,
+                due_at,
+                (row["learned_at"] or now_utc()) if learned else None,
+                0 if correct else 1,
+                card_id,
+                body.review_version,
+                now_utc(),
+            ),
         )
+        if updated.rowcount != 1:
+            raise HTTPException(409, "Карточка уже отвечена")
         db.execute(
             "INSERT INTO card_reviews (user_id, mistake_id, correct) VALUES (?, ?, ?)",
             (user_id, card_id, int(correct)),
@@ -178,7 +205,7 @@ def stats(db: Db, user_id: UserId) -> dict:
     row = db.execute(
         "SELECT COUNT(*) AS total,"
         " COALESCE(SUM(learned_at IS NOT NULL), 0) AS learned,"
-        " COALESCE(SUM(learned_at IS NULL AND due_at <= ?), 0) AS due FROM mistakes"
+        " COALESCE(SUM(due_at <= ?), 0) AS due FROM mistakes"
         " WHERE user_id = ?",
         (now_utc(), user_id),
     ).fetchone()

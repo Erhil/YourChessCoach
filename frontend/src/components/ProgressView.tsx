@@ -52,7 +52,7 @@ export function ProgressView({ d, chartTitle }: { d: Progress; chartTitle?: stri
       </p>
       <h2>Колода ошибок</h2>
       <p>
-        В колоде: {d.mistakes.total} {plural(d.mistakes.total, 'карточка', 'карточки', 'карточек')}, усвоено: {d.mistakes.learned}
+        В колоде: {d.mistakes.total} {plural(d.mistakes.total, 'карточка', 'карточки', 'карточек')}, три правильных повторения: {d.mistakes.learned}
       </p>
     </>
   )

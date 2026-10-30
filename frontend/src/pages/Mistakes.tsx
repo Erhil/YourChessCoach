@@ -31,8 +31,8 @@ function feedback(a: MistakeAnswer, mine: string): string {
   if (!a.correct) return `Не тот ход. Лучше было ${toFigurine(a.best_san)}. Карточка вернётся сегодня.`
   // A move almost as good as the best one is also right; the best one is still named.
   const also = mine === a.best_uci ? '' : ` Ваш ход тоже хороший, лучший — ${toFigurine(a.best_san)}.`
-  if (a.learned) return `Верно!${also} Ошибка усвоена.`
-  return `Верно!${also} До усвоения: ${answersLeft(a.left)}. Следующее повторение через ${days(a.due_at)}.`
+  if (a.learned) return `Верно!${also} Три повторения пройдены. Следующее повторение через ${days(a.due_at)}.`
+  return `Верно!${also} До трёх повторений: ${answersLeft(a.left)}. Следующее повторение через ${days(a.due_at)}.`
 }
 
 export default function Mistakes() {
@@ -41,6 +41,7 @@ export default function Mistakes() {
   const [next, setNext] = useState<NextMistake | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState(false)
+  const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
   const [mine, setMine] = useState('')
   const [ans, setAns] = useState<MistakeAnswer | null>(null)
@@ -69,12 +70,15 @@ export default function Mistakes() {
     setBusy(true)
     const uci = toUci(m)
     setMine(uci)
-    answerMistake(card.id, uci)
+    answerMistake(card.id, uci, card.review_version)
       .then((a) => {
         setAns(a)
         void getMistakeStats().then(setStats, () => {})
       })
-      .catch(() => setError(true))
+      .catch(async () => {
+        setNotice('Ответ мог сохраниться. Колода обновлена; продолжайте с доступной карточки.')
+        await load()
+      })
       .finally(() => setBusy(false))
     return true
   }
@@ -97,7 +101,8 @@ export default function Mistakes() {
           <strong>{left} на сегодня</strong>
         </p>
       )}
-      {!!stats?.learned && <p data-testid="deck-stats">Усвоено: {stats.learned}</p>}
+      {!!stats?.learned && <p data-testid="deck-stats">Три повторения пройдены: {stats.learned}</p>}
+      {notice && <p role="status">{notice}</p>}
       {error && <p role="alert">Не удалось связаться с сервером.</p>}
       {loaded && !card && !error && (
         <p className={css.status} data-testid="status">

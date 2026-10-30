@@ -18,7 +18,8 @@ test('every section opens', async ({ page, hasTouch }) => {
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
   }
   // The last section is «Профиль»: its «Настройки» part has the server line.
-  await expect(page.getByText('Сервер: работает. Stockfish: найден')).toBeVisible()
+  await expect(page.getByText(/Сервер: работает/)).toBeVisible()
+  await expect(page.getByText(/Stockfish: найден/)).toBeVisible()
 })
 
 test('iPhone: no horizontal scroll, menu button is touch sized', async ({ page }, info) => {

@@ -2,6 +2,7 @@ import { signalled, tz } from './activity'
 import { call } from './http'
 
 export interface MistakeCard {
+  review_version: number
   id: number
   fen: string
   side: 'white' | 'black'
@@ -36,6 +37,6 @@ export interface NextMistake {
 
 export const getNextMistake = () => call<NextMistake>(`/api/mistakes/next?tz=${tz()}`)
 export const getMistakeStats = () => call<MistakeStats>('/api/mistakes/stats')
-export const answerMistake = signalled((id: number, uci: string) => call<MistakeAnswer>(`/api/mistakes/${id}/answer`, { uci }))
+export const answerMistake = signalled((id: number, uci: string, review_version: number) => call<MistakeAnswer>(`/api/mistakes/${id}/answer?tz=${tz()}`, { uci, review_version }))
 export const addPlayMistake = (card: { fen: string; best_uci: string; played_uci: string; classification: string; motif?: string }) =>
   call<{ id: number; created: boolean }>('/api/mistakes', { source: 'play', ...card })

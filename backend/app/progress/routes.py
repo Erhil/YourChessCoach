@@ -18,7 +18,8 @@ from app.puzzles.themes import OFFERED, theme_name
 router = APIRouter(prefix="/api/progress")
 
 HISTORY_LIMIT = 200
-WEAK_MIN_ATTEMPTS = 3
+# Ten attempts are a minimum for selecting a weak topic, not proof of mastery.
+WEAK_MIN_ATTEMPTS = 10
 CALENDAR_WEEKS = 12
 SUMMARY_WEEKS = 8
 
@@ -26,7 +27,7 @@ SUMMARY_WEEKS = 8
 @router.get("")
 def progress(request: Request, db: Db, user_id: UserId, tz: int | None = Tz) -> dict:
     tz = server_tz() if tz is None else tz
-    data = build_progress(db, request.app.state.settings.lessons_dir, user_id)
+    data = build_progress(db, request.app.state.settings.lessons_dir, user_id, tz)
     return data | build_weeks(db, user_id, tz, local_today(now_utc(), tz))
 
 
@@ -92,7 +93,9 @@ def build_weeks(db: sqlite3.Connection, user_id: int, tz: int, today: date) -> d
     return {"calendar": [d.isoformat() for d in active], "weeks": weeks}
 
 
-def build_progress(db: sqlite3.Connection, lessons_dir: Path, user_id: int) -> dict:
+def build_progress(
+    db: sqlite3.Connection, lessons_dir: Path, user_id: int, tz: int | None = None
+) -> dict:
     def scalar(sql: str, *args) -> int:
         return db.execute(sql, (user_id, *args)).fetchone()[0]
 
@@ -149,7 +152,53 @@ def build_progress(db: sqlite3.Connection, lessons_dir: Path, user_id: int) -> d
     lessons = list_lessons(lessons_dir)
     completed = sum(is_completed(x, solved.get(x["slug"], 0)) for x in lessons)
 
+    # Keep today's target fixed. Today's results change the next local day's workload.
+    tz = server_tz() if tz is None else tz
+    today = local_today(now_utc(), tz)
+    recent = db.execute(
+        "SELECT solved, used_hint FROM puzzle_attempts WHERE user_id = ?"
+        " AND date(created_at, ?) < ? ORDER BY id DESC LIMIT 10",
+        (user_id, shift(tz), today.isoformat()),
+    ).fetchall()
+    independent = sum(r["solved"] and not r["used_hint"] for r in recent)
+    workload = (
+        5
+        if len(recent) < 5
+        else (
+            3 if independent * 2 < len(recent) else 7 if independent * 5 >= len(recent) * 4 else 5
+        )
+    )
+    error = db.execute(
+        "SELECT motif FROM mistakes WHERE user_id = ? AND source IN ('game', 'play')"
+        " AND learned_at IS NULL AND motif IS NOT NULL ORDER BY created_at DESC, id DESC LIMIT 20",
+        (user_id,),
+    ).fetchall()
+    motif_themes = {
+        "hanging_piece": "hangingPiece",
+        "back_rank": "backRankMate",
+        "discovered_attack": "discoveredAttack",
+    }
+    game_themes = [motif_themes.get(r["motif"], r["motif"]) for r in error]
+    game_theme = next((key for key in game_themes if key in OFFERED), None)
+    # A different puzzle is practice in a new position. It does not prove skill transfer.
+    transfer = db.execute(
+        "SELECT motif, ref FROM mistakes WHERE user_id = ? AND source = 'puzzle'"
+        " AND learned_at <= strftime('%Y-%m-%dT%H:%M:%SZ', ?, '-7 days')"
+        " AND due_at <= ? ORDER BY due_at, id LIMIT 1",
+        (user_id, now_utc(), now_utc()),
+    ).fetchone()
+    recommendation = {
+        "target": workload,
+        "recent_attempts": len(recent),
+        "independent_solved": independent,
+        "game_theme": game_theme,
+        "provisional": weak is None,
+        "transfer": {"theme": transfer["motif"], "exclude": transfer["ref"]}
+        if transfer and transfer["motif"] in OFFERED
+        else None,
+    }
     return {
+        "training": recommendation,
         "puzzles": {
             "rating": round(row["rating"]) if row else round(START_RATING),
             "attempts": row["attempts"] if row else 0,
@@ -176,7 +225,7 @@ def build_progress(db: sqlite3.Connection, lessons_dir: Path, user_id: int) -> d
         "mistakes": {
             "total": scalar("SELECT COUNT(*) FROM mistakes WHERE user_id = ?"),
             "due": scalar(
-                "SELECT COUNT(*) FROM mistakes WHERE user_id = ? AND due_at <= ? AND learned_at IS NULL",
+                "SELECT COUNT(*) FROM mistakes WHERE user_id = ? AND due_at <= ?",
                 now_utc(),
             ),
             "learned": scalar(

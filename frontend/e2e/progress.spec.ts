@@ -26,8 +26,8 @@ test('Today links to the weak theme in Puzzles', async ({ page, hasTouch, playwr
   const admin = await adminApi(playwright.request, baseURL!)
   const { ctx: request } = await userApi(playwright.request, baseURL!, admin, 'weak')
   await page.context().addCookies((await request.storageState()).cookies)
-  // A weak theme needs at least 3 attempts in one theme: make them here, do not rely on other tests.
-  for (let i = 0; i < 3; i++) {
+  // A weak theme needs at least 10 attempts in one theme: make them here, do not rely on other tests.
+  for (let i = 0; i < 10; i++) {
     const pz = (await (await request.get('/api/puzzles/next?theme=fork')).json()) as { id: string }
     await request.post(`/api/puzzles/${pz.id}/attempt`, { data: { solved: false, used_hint: false } })
   }
@@ -47,7 +47,7 @@ test('Profile shows the themes after an attempt', async ({ page, request }, info
   await page.goto('/profile')
   await expect(page.getByRole('group', { name: 'Рейтинг в задачах' })).toContainText(/Рейтинг в задачах\s*\d+/)
 
-  const pz = (await (await request.get('/api/puzzles/next')).json()) as { id: string }
+  const pz = (await (await request.get('/api/puzzles/next?theme=fork')).json()) as { id: string }
   const r = await request.post(`/api/puzzles/${pz.id}/attempt`, { data: { solved: true, used_hint: false } })
   expect(r.ok()).toBe(true)
 
@@ -95,8 +95,29 @@ test.describe('own user', () => {
     await page.goto('/profile')
     await expect(page.getByRole('group', { name: 'Календарь' })).toContainText('0 активных дней за 12 недель')
     await expect(page.getByRole('region', { name: 'Последние недели' })).toHaveCount(0)
-    await expect(page.getByText('В колоде: 0 карточек, усвоено: 0')).toBeVisible()
+    await expect(page.getByText('В колоде: 0 карточек, три правильных повторения: 0')).toBeVisible()
     await api.dispose()
     await admin.dispose()
   })
+})
+
+
+test('Today offers a delayed new-position practice link', async ({ page, hasTouch }) => {
+  await page.route('**/api/progress?*', async (route) => {
+    const response = await route.fetch()
+    const body = await response.json()
+    await route.fulfill({ json: { ...body, training: { target: 3, provisional: true, transfer: { theme: 'fork', exclude: 'old-puzzle' } } } })
+  })
+  await page.route('**/api/activity?*', async (route) => {
+    const response = await route.fetch()
+    const body = await response.json()
+    await route.fulfill({ json: { ...body, today: { puzzles: 0, cards: 0, lesson_positions: 0, games: 0 } } })
+  })
+  await page.goto('/')
+  const link = page.getByRole('link', { name: 'Новая позиция по знакомой теме — 3 задач' })
+  await expect(link).toHaveAttribute('href', '/puzzles?theme=fork&exclude=old-puzzle')
+  await expect(page.getByText('Это практика, а не подтверждение переноса навыка.', { exact: false })).toBeVisible()
+  await (hasTouch ? link.tap() : link.click())
+  await expect(page).toHaveURL(/exclude=old-puzzle/)
+  await page.unrouteAll({ behavior: 'wait' })
 })

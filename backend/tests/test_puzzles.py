@@ -208,3 +208,44 @@ def test_missing_puzzle_db_is_503(tmp_path):
         r = c.get(url)
         assert r.status_code == 503
         assert "import_puzzles.py" in r.json()["detail"]
+
+
+def test_attempt_retry_is_idempotent_and_conflicts_are_rejected(client):
+    url = "/api/puzzles/p00/attempt"
+    body = {"solved": True, "used_hint": False, "client_id": "attempt-a"}
+    first = client.post(url, json=body)
+    assert first.status_code == 200
+    # The client lost the first response. Retry after another legitimate attempt.
+    second = client.post(url, json={**body, "client_id": "attempt-b"})
+    assert second.status_code == 200
+    assert client.post(url, json=body).json() == first.json()
+    assert client.get("/api/puzzles/rating").json()["attempts"] == 2
+    assert client.post(url, json={**body, "solved": False}).status_code == 409
+    assert client.post("/api/puzzles/p01/attempt", json=body).status_code == 409
+    assert client.get("/api/puzzles/rating").json()["attempts"] == 2
+
+
+def test_failed_attempt_and_card_commit_together_or_retry(client):
+    path = client.app.state.settings.app_db_path
+    conn = sqlite3.connect(path)
+    conn.execute(
+        "CREATE TRIGGER reject_card BEFORE INSERT ON mistakes "
+        "BEGIN SELECT RAISE(ABORT, 'card unavailable'); END"
+    )
+    conn.commit()
+    body = {"solved": False, "client_id": "atomic-failure"}
+    with pytest.raises(sqlite3.IntegrityError, match="card unavailable"):
+        client.post("/api/puzzles/p00/attempt", json=body)
+    for table in ("puzzle_receipts", "puzzle_attempts", "user_ratings", "mistakes"):
+        assert conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
+    conn.execute("DROP TRIGGER reject_card")
+    conn.commit()
+    first = client.post("/api/puzzles/p00/attempt", json=body)
+    assert first.status_code == 200
+    assert client.post("/api/puzzles/p00/attempt", json=body).json() == first.json()
+    for table in ("puzzle_receipts", "puzzle_attempts", "mistakes"):
+        assert conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 1
+    assert (
+        conn.execute("SELECT attempts FROM user_ratings WHERE scope = 'overall'").fetchone()[0] == 1
+    )
+    conn.close()

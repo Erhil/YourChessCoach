@@ -1,12 +1,12 @@
-"""Mistakes deck: a card is learned after 3 right answers in a row; a wrong answer resets the count."""
+"""Mistakes deck: spaced reviews continue after the first learned milestone."""
 
 from datetime import UTC, datetime, timedelta
 
 LEARNED_STREAK = 3
 # Deck answers in one local day; after them /next gives no card until the next local day.
 DAILY_LIMIT = 10
-# Days until the next review, by the count of right answers in a row (the 3rd one ends the review).
-INTERVAL_DAYS = {1: 1, 2: 3}
+# Days until the next review, by the count of right answers in a row (later intervals stay at 60 days).
+INTERVAL_DAYS = {1: 1, 2: 3, 3: 7, 4: 14, 5: 30}
 FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
@@ -24,7 +24,5 @@ def schedule(streak: int, correct: bool, now: str | None = None) -> tuple[int, s
     if not correct:
         return 0, now, False
     new_streak = streak + 1
-    if new_streak >= LEARNED_STREAK:
-        return new_streak, now, True
-    due = datetime.strptime(now, FORMAT) + timedelta(days=INTERVAL_DAYS[new_streak])
-    return new_streak, due.strftime(FORMAT), False
+    due = datetime.strptime(now, FORMAT) + timedelta(days=INTERVAL_DAYS.get(new_streak, 60))
+    return new_streak, due.strftime(FORMAT), new_streak >= LEARNED_STREAK

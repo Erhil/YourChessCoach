@@ -63,6 +63,29 @@ class OllamaClient:
         self._checked = (time.monotonic(), ok)
         return ok
 
+    def readiness(self, model: str) -> dict:
+        """Inspect installed models, without running or loading one."""
+        try:
+            response = self._http.get(self._tags_url, timeout=1.0)
+            response.raise_for_status()
+            names = {
+                item.get("name", "") for item in response.json()["models"] if isinstance(item, dict)
+            }
+            present = model in names or (":" not in model and model + ":latest" in names)
+            return {
+                "reachable": True,
+                "model_present": present,
+                "available": present,
+                "status": "ready" if present else "model_missing",
+            }
+        except (httpx.HTTPError, ValueError, KeyError, TypeError):
+            return {
+                "reachable": False,
+                "model_present": False,
+                "available": False,
+                "status": "unreachable",
+            }
+
     def chat(self, system: str, user: str, model: str) -> str:
         if time.monotonic() < self._down_until:
             raise LLMError("ollama unavailable (recent connection failure)")

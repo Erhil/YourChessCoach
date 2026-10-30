@@ -1,3 +1,4 @@
+import json
 import random
 import sqlite3
 from collections.abc import Iterator
@@ -7,7 +8,7 @@ from typing import Annotated
 
 import chess
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.auth.deps import UserId
 from app.db import Db
@@ -40,6 +41,7 @@ PuzzlesDb = Annotated[sqlite3.Connection, Depends(get_puzzles_db)]
 
 
 class AttemptIn(BaseModel):
+    client_id: str | None = Field(None, min_length=1, max_length=100)
     solved: bool
     used_hint: bool = False
 
@@ -116,6 +118,7 @@ def next_puzzle(
     pdb: PuzzlesDb,
     theme: str | None = None,
     opening: str | None = None,
+    exclude: str | None = None,
 ) -> dict:
     if theme is not None and theme not in OFFERED:
         raise HTTPException(404, "Неизвестная тема")
@@ -134,6 +137,9 @@ def next_puzzle(
     for window in WINDOWS:
         where: list[str] = []
         args: list = []
+        if exclude:
+            where.append("id != ?")
+            args.append(exclude)
         if theme:
             where.append("id IN (SELECT puzzle_id FROM puzzle_themes WHERE theme = ?)")
             args.append(theme)
@@ -163,6 +169,23 @@ def attempt(puzzle_id: str, body: AttemptIn, db: Db, user_id: UserId, pdb: Puzzl
     new: dict[str, float] = {}
     before = after = 0.0
     with db:
+        # Serialize the receipt check and all rating writes across connections.
+        db.execute("BEGIN IMMEDIATE")
+        if body.client_id:
+            receipt = db.execute(
+                "SELECT * FROM puzzle_receipts WHERE user_id = ? AND client_id = ?",
+                (user_id, body.client_id),
+            ).fetchone()
+            if receipt:
+                if (receipt["puzzle_id"], receipt["solved"], receipt["used_hint"]) != (
+                    puzzle_id,
+                    body.solved,
+                    body.used_hint,
+                ):
+                    raise HTTPException(
+                        409, "Этот идентификатор уже использован для другого результата"
+                    )
+                return json.loads(receipt["response"])
         for scope in scopes:
             old, n = _scope_rating(db, user_id, scope)
             new[scope] = update_rating(old, n, row["rating"], result)
@@ -178,22 +201,35 @@ def attempt(puzzle_id: str, body: AttemptIn, db: Db, user_id: UserId, pdb: Puzzl
             " rating_before, rating_after) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (user_id, puzzle_id, body.solved, body.used_hint, row["rating"], before, after),
         )
-    if not body.solved:
-        moves = row["moves"].split()
-        board = chess.Board(row["fen"])
-        board.push_uci(moves[0])
-        motif = next((k for k in _theme_keys(row) if k in OFFERED), None)
-        add_card(db, user_id, "puzzle", puzzle_id, board.fen(), moves[1], None, motif)
-    return {
-        "rating_before": round(before),
-        "rating_after": round(after),
-        "delta": round(after - before),
-        "themes": [
-            {"key": k, "name": theme_name(k), "rating": round(v)}
-            for k, v in new.items()
-            if k != "overall"
-        ],
-    }
+        response = {
+            "rating_before": round(before),
+            "rating_after": round(after),
+            "delta": round(after - before),
+            "themes": [
+                {"key": k, "name": theme_name(k), "rating": round(v)}
+                for k, v in new.items()
+                if k != "overall"
+            ],
+        }
+        if not body.solved:
+            moves = row["moves"].split()
+            board = chess.Board(row["fen"])
+            board.push_uci(moves[0])
+            motif = next((k for k in _theme_keys(row) if k in OFFERED), None)
+            add_card(db, user_id, "puzzle", puzzle_id, board.fen(), moves[1], None, motif)
+        if body.client_id:
+            db.execute(
+                "INSERT INTO puzzle_receipts VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    user_id,
+                    body.client_id,
+                    puzzle_id,
+                    body.solved,
+                    body.used_hint,
+                    json.dumps(response, ensure_ascii=False),
+                ),
+            )
+    return response
 
 
 @router.get("/rating")

@@ -265,7 +265,7 @@ def _mistakes_block(ctx: Ctx) -> dict:
     return {
         "total": count("1 = 1"),
         "learned": count("learned_at IS NOT NULL"),
-        "due": count("due_at <= ? AND learned_at IS NULL", now_utc()),
+        "due": count("due_at <= ?", now_utc()),
         "by_motif": grouped("motif"),
         "by_classification": grouped("classification"),
     }

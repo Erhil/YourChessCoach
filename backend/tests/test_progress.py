@@ -53,6 +53,7 @@ def run(db_path, sql, rows):
 def test_empty_database(client):
     data = client.get("/api/progress").json()
     assert data.pop("calendar") == [] and len(data.pop("weeks")) == 8
+    assert data.pop("training")["target"] == 5
     assert data == {
         "puzzles": {"rating": 600, "attempts": 0, "solved": 0, "history": []},
         "themes": [],
@@ -167,7 +168,7 @@ def test_training_games_do_not_count_in_results(client, db_path):
     assert games["player_moves"] == 89
 
 
-def test_themes_weakest_first_and_weak_theme_needs_three_attempts(client, db_path):
+def test_sparse_topics_do_not_select_a_weak_theme(client, db_path):
     client.get("/api/progress")
     run(
         db_path,
@@ -184,7 +185,8 @@ def test_themes_weakest_first_and_weak_theme_needs_three_attempts(client, db_pat
     data = client.get("/api/progress").json()
     assert [t["key"] for t in data["themes"]] == ["pin", "skewer", "fork"]
     assert data["themes"][0] == {"key": "pin", "name": "Связка", "rating": 500, "attempts": 2}
-    assert data["weak_theme"] == {"key": "skewer", "name": "Линейный удар"}
+    assert data["weak_theme"] is None
+    assert data["training"]["provisional"] is True
 
 
 @pytest.fixture
@@ -404,3 +406,41 @@ def test_saved_game_counts_initial_turn(client, db_path, pgn, color, blunders, e
         assert mcp["blunders_per_10_moves"] == 10.0
     finally:
         db.close()
+
+
+@pytest.mark.parametrize(("solved", "hint", "target"), [(0, 0, 3), (1, 1, 3), (1, 0, 7)])
+def test_recent_independent_results_adapt_workload(weekly, db_path, solved, hint, target):
+    run(
+        db_path,
+        "INSERT INTO puzzle_attempts (user_id, puzzle_id, created_at, solved, used_hint, puzzle_rating, rating_before, rating_after)"
+        " VALUES ((SELECT MIN(id) FROM users), 'p', '2026-10-20T10:00:00Z', ?, ?, 700, 600, 600)",
+        [(solved, hint)] * 5,
+    )
+    assert weekly.get("/api/progress?tz=0").json()["training"]["target"] == target
+
+
+def test_today_workload_stays_fixed_until_next_local_day(weekly, db_path, monkeypatch):
+    assert weekly.get("/api/progress?tz=-180").json()["training"]["target"] == 5
+    # Yesterday in UTC, but already today in Moscow.
+    attempts(db_path, [("2026-10-20T22:30:00Z", 1, 600, 600)] * 5)
+    assert weekly.get("/api/progress?tz=-180").json()["training"]["target"] == 5
+    assert weekly.get("/api/progress?tz=0").json()["training"]["target"] == 7
+    monkeypatch.setattr("app.progress.routes.now_utc", lambda: "2026-10-21T21:00:00Z")
+    assert weekly.get("/api/progress?tz=-180").json()["training"]["target"] == 7
+
+
+def test_transfer_practice_waits_seven_days_and_excludes_original(client, db_path, monkeypatch):
+    monkeypatch.setattr("app.progress.routes.now_utc", lambda: NOW)
+    client.get("/api/progress")
+    run(
+        db_path,
+        "INSERT INTO mistakes (user_id, source, ref, fen, best_uci, best_san, motif, created_at, due_at, reviews, lapses, learned_at, streak)"
+        " VALUES ((SELECT MIN(id) FROM users), 'puzzle', 'original', 'f', 'e2e4', 'e4', 'fork', ?, ?, 3, 0, ?, 3)",
+        [(NOW, NOW, "2026-10-15T12:00:00Z")],
+    )
+    assert client.get("/api/progress").json()["training"]["transfer"] is None
+    run(db_path, "UPDATE mistakes SET learned_at = ?", [("2026-10-14T12:00:00Z",)])
+    assert client.get("/api/progress").json()["training"]["transfer"] == {
+        "theme": "fork",
+        "exclude": "original",
+    }

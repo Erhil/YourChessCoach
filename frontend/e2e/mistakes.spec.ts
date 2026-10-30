@@ -23,7 +23,7 @@ async function openCard(page: Page, request: APIRequestContext, played: { uci: s
     data: { source: 'play', fen, best_uci: 'd1d5', classification: 'blunder', played_uci: played?.uci },
   })
   const { id } = (await created.json()) as { id: number }
-  const card = { id, fen, side: 'white', source: 'play', motif: null, classification: 'blunder', played_san: played?.san ?? null }
+  const card = { id, review_version: 0, fen, side: 'white', source: 'play', motif: null, classification: 'blunder', played_san: played?.san ?? null }
   // The page asks /api/mistakes/next?tz=…: a glob without the query does not match it.
   await page.route(NEXT, (r) => r.fulfill({ json: { card, due: 1, today: { reviewed: 0, limit: 10 } } }))
   await page.goto('/mistakes')
@@ -59,10 +59,32 @@ test.describe('mistakes deck', () => {
     await expect(page.getByText('Из игры с тренером')).toBeVisible()
     await play(page, 'd1', 'd5')
     await expect(page.getByTestId('status')).toContainText('Верно!', { timeout: 15_000 })
-    await expect(page.getByTestId('status')).toContainText('До усвоения: ещё 2 правильных ответа.')
+    await expect(page.getByTestId('status')).toContainText('До трёх повторений: ещё 2 правильных ответа.')
     await expect(page.getByTestId('status')).toContainText('Следующее повторение через 1 день.')
     await expect(page.getByTestId('status')).not.toContainText('Ваш ход тоже хороший')
     await expect(page.locator('[data-arrows="1"]')).toBeVisible()
+  })
+
+  test('a lost answer response reloads the committed deck without resending', async ({ page }) => {
+    await openCard(page, request)
+    await page.unroute(NEXT)
+    let answers = 0
+    await page.route('**/api/mistakes/*/answer*', async (route) => {
+      answers++
+      const response = await route.fetch()
+      expect(response.status()).toBe(200)
+      await route.abort('failed')
+    })
+    await play(page, 'd1', 'd5')
+    await expect(page.getByText('Ответ мог сохраниться. Колода обновлена; продолжайте с доступной карточки.')).toBeVisible()
+    await expect(page.getByTestId('status')).toContainText('На сегодня всё повторено.')
+    expect(answers).toBe(1)
+    const deck = await (await request.get('/api/mistakes/next?tz=0')).json() as { card: unknown; today: { reviewed: number } }
+    expect(deck.card).toBeNull()
+    expect(deck.today.reviewed).toBe(1)
+    await page.reload()
+    await expect(page.getByTestId('status')).toContainText('На сегодня всё повторено.')
+    expect(answers).toBe(1)
   })
 
   test('a wrong move shows the best move and an explanation', async ({ page }) => {
@@ -88,13 +110,13 @@ test.describe('mistakes deck', () => {
 
   test('a good move that is not the best is right, and the best is named', async ({ page }) => {
     await openCard(page, request)
-    await page.route('**/api/mistakes/*/answer', (r) =>
+    await page.route('**/api/mistakes/*/answer*', (r) =>
       r.fulfill({
         json: { correct: true, best_uci: 'd1d5', best_san: 'Rxd5', streak: 1, left: 2, learned: false, due_at: new Date(Date.now() + 86_400_000).toISOString(), explanation: null },
       }),
     )
     await play(page, 'e1', 'f1')
-    await expect(page.getByTestId('status')).toContainText('Верно! Ваш ход тоже хороший, лучший — ♖xd5. До усвоения: ещё 2 правильных ответа.')
+    await expect(page.getByTestId('status')).toContainText('Верно! Ваш ход тоже хороший, лучший — ♖xd5. До трёх повторений: ещё 2 правильных ответа.')
     await expect(page.locator('[data-arrows="1"]')).toBeVisible() // only the best move
   })
 
@@ -116,13 +138,13 @@ test.describe('mistakes deck', () => {
 
   test('the last right answer marks the mistake as learned', async ({ page }) => {
     await openCard(page, request)
-    await page.route('**/api/mistakes/*/answer', (r) =>
+    await page.route('**/api/mistakes/*/answer*', (r) =>
       r.fulfill({
         json: { correct: true, best_uci: 'd1d5', best_san: 'Rxd5', streak: 3, left: 0, learned: true, due_at: '2026-01-01T00:00:00Z', explanation: null },
       }),
     )
     await play(page, 'd1', 'd5')
-    await expect(page.getByTestId('status')).toContainText('Верно! Ошибка усвоена.')
+    await expect(page.getByTestId('status')).toContainText('Верно! Три повторения пройдены.')
   })
 
   test('«Усвоено» shows only when a card is learned, and there is no total', async ({ page }) => {
@@ -132,7 +154,7 @@ test.describe('mistakes deck', () => {
     await expect(page.getByText('Всего в колоде')).toHaveCount(0)
     await page.route('**/api/mistakes/stats', (r) => r.fulfill({ json: { total: 4, due: 1, learned: 2 } }))
     await page.reload()
-    await expect(page.getByTestId('deck-stats')).toHaveText('Усвоено: 2')
+    await expect(page.getByTestId('deck-stats')).toHaveText('Три повторения пройдены: 2')
   })
 
   test('the daily limit of 1 uses the singular', async ({ page }) => {
@@ -143,13 +165,13 @@ test.describe('mistakes deck', () => {
 
   test('one right answer left uses the singular', async ({ page }) => {
     await openCard(page, request)
-    await page.route('**/api/mistakes/*/answer', (r) =>
+    await page.route('**/api/mistakes/*/answer*', (r) =>
       r.fulfill({
         json: { correct: true, best_uci: 'd1d5', best_san: 'Rxd5', streak: 2, left: 1, learned: false, due_at: new Date(Date.now() + 3 * 86_400_000).toISOString(), explanation: null },
       }),
     )
     await play(page, 'd1', 'd5')
-    await expect(page.getByTestId('status')).toContainText('До усвоения: ещё 1 правильный ответ. Следующее повторение через 3 дня.')
+    await expect(page.getByTestId('status')).toContainText('До трёх повторений: ещё 1 правильный ответ. Следующее повторение через 3 дня.')
   })
 
   test('the daily limit: «N на сегодня», then «На сегодня всё»', async ({ page }) => {

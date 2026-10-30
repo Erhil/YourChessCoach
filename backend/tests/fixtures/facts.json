@@ -189,8 +189,8 @@
   },
   {
     "id": "even_trade_no_material_motif",
-    "fen": "r1bqkbnr/pppp1ppp/2n5/8/3NP3/8/PPP2PPP/RNBQKB1R b KQkq - 0 1",
-    "move": "c6d4",
+    "fen": "3rk3/8/8/8/8/8/8/3RK3 w - - 0 1",
+    "move": "d1d8",
     "expect": {
       "material_change": 0,
       "no_against": [

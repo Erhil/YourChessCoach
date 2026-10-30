@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import ResultQueueStatus from '../puzzles/ResultQueueStatus'
 import AchievementNote from './AchievementNote'
 import styles from './Layout.module.css'
 
@@ -47,6 +48,7 @@ export default function Layout({ login, onLogout }: { login: string; onLogout: (
         </div>
       </nav>
       <main className={styles.main}>
+        <ResultQueueStatus login={login} />
         <Outlet />
       </main>
       <AchievementNote />

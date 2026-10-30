@@ -15,6 +15,7 @@ export interface WeekSummary {
 }
 
 export interface Progress {
+  training?: { target: number; recent_attempts: number; independent_solved: number; game_theme: string | null; provisional: boolean; transfer: { theme: string; exclude: string } | null }
   puzzles: { rating: number; attempts: number; solved: number; history: { at: string; rating: number }[] }
   themes: { key: string; name: string; rating: number; attempts: number }[]
   weak_theme: { key: string; name: string } | null

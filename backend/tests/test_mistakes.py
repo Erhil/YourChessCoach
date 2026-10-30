@@ -1,5 +1,8 @@
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from datetime import UTC, datetime, timedelta
+from threading import Barrier
 from types import SimpleNamespace
 
 import chess
@@ -41,7 +44,7 @@ def play_card(client, fen=BACK_RANK, best="a1a8", classification="blunder"):
 def test_schedule_right_answers_in_a_row():
     assert schedule(0, True, NOW) == (1, "2026-01-02T00:00:00Z", False)
     assert schedule(1, True, NOW) == (2, "2026-01-04T00:00:00Z", False)
-    assert schedule(2, True, NOW) == (3, NOW, True)
+    assert schedule(2, True, NOW) == (3, "2026-01-08T00:00:00Z", True)
 
 
 def test_schedule_wrong_answer_resets_and_stays_due_today():
@@ -49,7 +52,7 @@ def test_schedule_wrong_answer_resets_and_stays_due_today():
     assert schedule(0, False, NOW) == (0, NOW, False)
 
 
-def test_learned_card_is_not_returned_and_is_counted(client):
+def test_learned_card_returns_when_due_and_is_counted(client):
     a = play_card(client).json()["id"]
     b = play_card(client, fen=chess.STARTING_FEN, best="e2e4", classification="mistake").json()[
         "id"
@@ -62,10 +65,15 @@ def test_learned_card_is_not_returned_and_is_counted(client):
         (b,),
     )
     conn.commit()
+    conn.row_factory = sqlite3.Row
+    from app.mcp.tools import _mistakes_block
+
+    user = conn.execute("SELECT id FROM users").fetchone()[0]
+    assert _mistakes_block(SimpleNamespace(db=conn, user_id=user))["due"] == 2
     conn.close()
-    assert client.get("/api/mistakes/next").json()["card"]["id"] == a
-    assert client.get("/api/mistakes/stats").json() == {"total": 2, "due": 1, "learned": 1}
-    assert client.get("/api/progress").json()["mistakes"] == {"total": 2, "due": 1, "learned": 1}
+    assert client.get("/api/mistakes/next").json()["card"]["id"] == b
+    assert client.get("/api/mistakes/stats").json() == {"total": 2, "due": 2, "learned": 1}
+    assert client.get("/api/progress").json()["mistakes"] == {"total": 2, "due": 2, "learned": 1}
 
 
 def test_migration_keeps_old_cards_with_streak_zero(tmp_path):
@@ -203,7 +211,11 @@ def test_wrong_answer_resets_and_card_stays_due(client):
     assert ok["correct"] and ok["streak"] == 1 and ok["left"] == 2 and not ok["learned"]
     assert ok["best_san"] == "Ra8#" and ok["explanation"] is None and ok["due_at"] > "2026"
     assert client.get("/api/mistakes/next").json()["card"] is None  # next review is tomorrow
-    bad = client.post(url, json={"uci": "a1a3"}).json()
+    conn = sqlite3.connect(client.db_path)
+    conn.execute("UPDATE mistakes SET due_at = '2020-01-01T00:00:00Z'")
+    conn.commit()
+    conn.close()
+    bad = client.post(url, json={"uci": "a1a3", "review_version": 1}).json()
     assert not bad["correct"] and bad["streak"] == 0 and bad["left"] == 3 and bad["explanation"]
     # The wrong answer keeps the card due now: it is the next card, and it is counted as due.
     data = client.get("/api/mistakes/next").json()
@@ -219,19 +231,21 @@ def test_third_right_answer_in_a_row_marks_card_learned(client):
     url = f"/api/mistakes/{card_id}/answer"
     conn = sqlite3.connect(client.db_path)
     for expected in (1, 2):
-        r = client.post(url, json={"uci": "a1a8"}).json()
+        r = client.post(url, json={"uci": "a1a8", "review_version": expected - 1}).json()
         assert r["streak"] == expected and not r["learned"]
         conn.execute("UPDATE mistakes SET due_at = '2020-01-01T00:00:00Z'")
         conn.commit()
-    client.post(url, json={"uci": "a1a3"})  # a wrong answer starts the count again
+    client.post(
+        url, json={"uci": "a1a3", "review_version": 2}
+    )  # a wrong answer starts the count again
     conn.execute("UPDATE mistakes SET due_at = '2020-01-01T00:00:00Z'")
     conn.commit()
-    for _ in range(2):
-        client.post(url, json={"uci": "a1a8"})
+    for version in (3, 4):
+        client.post(url, json={"uci": "a1a8", "review_version": version})
         conn.execute("UPDATE mistakes SET due_at = '2020-01-01T00:00:00Z'")
         conn.commit()
     assert client.get("/api/mistakes/next").json()["card"]["id"] == card_id
-    last = client.post(url, json={"uci": "a1a8"}).json()
+    last = client.post(url, json={"uci": "a1a8", "review_version": 5}).json()
     conn.close()
     assert last["learned"] and last["left"] == 0 and last["streak"] == 3
     assert client.get("/api/mistakes/next").json() == {
@@ -304,3 +318,80 @@ def test_daily_limit_by_local_day_and_user(client, monkeypatch):
 @pytest.mark.parametrize("tz", [-841, 841, "x"])
 def test_next_tz_validation(client, tz):
     assert client.get("/api/mistakes/next", params={"tz": tz}).status_code == 422
+
+
+def test_replay_cannot_advance_or_skip_a_review(client, monkeypatch):
+    monkeypatch.setattr(
+        "app.mistakes.routes.build_facts", lambda *a: SimpleNamespace(classification="best")
+    )
+    card_id = play_card(client).json()["id"]
+    url = f"/api/mistakes/{card_id}/answer"
+    assert client.post(url, json={"uci": "a1a8", "review_version": 0}).status_code == 200
+    assert client.post(url, json={"uci": "a1a8", "review_version": 0}).status_code == 409
+    assert client.post(url, json={"uci": "a1a8", "review_version": 1}).status_code == 409
+    conn = sqlite3.connect(client.db_path)
+    assert conn.execute("SELECT streak, reviews FROM mistakes").fetchone() == (1, 1)
+    conn.close()
+
+
+def test_retention_intervals_are_bounded_and_lapse_restarts_learning():
+    assert schedule(3, True, NOW) == (4, "2026-01-15T00:00:00Z", True)
+    assert schedule(4, True, NOW) == (5, "2026-01-31T00:00:00Z", True)
+    assert schedule(100, True, NOW) == (101, "2026-03-02T00:00:00Z", True)
+    assert schedule(5, False, NOW) == (0, NOW, False)
+
+
+def test_simultaneous_answers_record_one_review(client, monkeypatch):
+    # Both requests read version zero before either engine call completes.
+    barrier = Barrier(2)
+
+    def facts(*args):
+        barrier.wait(timeout=10)
+        return SimpleNamespace(classification="best")
+
+    monkeypatch.setattr("app.mistakes.routes.build_facts", facts)
+    card_id = play_card(client).json()["id"]
+    url = f"/api/mistakes/{card_id}/answer"
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(
+            pool.map(
+                lambda _: client.post(url, json={"uci": "a1a8", "review_version": 0}), range(2)
+            )
+        )
+    assert sorted(r.status_code for r in results) == [200, 409]
+    assert client.post(url, json={"uci": "a1a8", "review_version": 0}).status_code == 409
+    conn = sqlite3.connect(client.db_path)
+    assert conn.execute("SELECT reviews, streak FROM mistakes").fetchone() == (1, 1)
+    assert conn.execute("SELECT COUNT(*) FROM card_reviews").fetchone()[0] == 1
+    conn.close()
+
+
+def test_legacy_learned_cards_keep_milestone_and_receive_future_due_date(tmp_path):
+    path = tmp_path / "legacy-learned.db"
+    conn = sqlite3.connect(path)
+    # Build the deployed schema before the retention migration.
+    for number, script in enumerate(MIGRATIONS[:14], start=1):
+        conn.executescript("BEGIN;" + script + f"PRAGMA user_version = {number}; COMMIT;")
+    user = conn.execute(
+        "INSERT INTO users (login, token_hash, created_at) VALUES ('legacy', 'x', 'n')"
+    ).lastrowid
+    conn.execute(
+        "INSERT INTO mistakes (user_id, source, ref, fen, best_uci, best_san, created_at, due_at, "
+        "reviews, lapses, streak, learned_at) VALUES (?, 'play', 'old', ?, 'a1a8', 'Ra8#', "
+        "'2020-01-01T00:00:00Z', '2020-01-02T00:00:00Z', 5, 1, 3, '2020-01-03T00:00:00Z')",
+        (user, BACK_RANK),
+    )
+    conn.commit()
+    conn.close()
+    before = datetime.now(UTC)
+    migrate(path)
+    conn = sqlite3.connect(path)
+    row = conn.execute(
+        "SELECT reviews, lapses, streak, learned_at, due_at FROM mistakes"
+    ).fetchone()
+    assert row[:4] == (5, 1, 3, "2020-01-03T00:00:00Z")
+    due = datetime.fromisoformat(row[4])
+    assert before + timedelta(days=7) <= due <= datetime.now(UTC) + timedelta(days=60)
+    migrate(path)
+    assert conn.execute("SELECT due_at FROM mistakes").fetchone()[0] == row[4]
+    conn.close()

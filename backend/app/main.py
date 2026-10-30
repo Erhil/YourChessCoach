@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
@@ -10,6 +12,7 @@ from app.auth.deps import USER_COOKIE, current_user_id, require_admin
 from app.auth.routes import admin_router, key_router
 from app.auth.routes import router as auth_router
 from app.bench.routes import router as bench_router
+from app.coach.explain import current_model
 from app.coach.routes import router as coach_router
 from app.config import Settings
 from app.config import settings as default_settings
@@ -46,13 +49,34 @@ def create_app(settings: Settings = default_settings) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        backup(settings.app_db_path)
+        backup(settings.app_db_path, folder=settings.backup_dir)
         migrate(settings.app_db_path)
-        yield
+        stop = asyncio.Event()
+
+        async def periodic_backup():
+            while not stop.is_set():
+                try:
+                    await asyncio.wait_for(stop.wait(), timeout=settings.backup_interval_s)
+                except TimeoutError:
+                    try:
+                        await asyncio.to_thread(
+                            backup, settings.app_db_path, folder=settings.backup_dir
+                        )
+                        app.state.backup_error = None
+                    except Exception as exc:
+                        app.state.backup_error = str(exc)
+                        logging.getLogger(__name__).exception("Periodic database backup failed")
+
+        task = asyncio.create_task(periodic_backup())
         try:
-            pool.close()
+            yield
         finally:
-            opponent.close()
+            stop.set()
+            await task
+            try:
+                pool.close()
+            finally:
+                opponent.close()
 
     app = FastAPI(
         title="chess-coach", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None
@@ -94,19 +118,28 @@ def create_app(settings: Settings = default_settings) -> FastAPI:
         short = {"status": "ok", "version": settings.app_version}
         db = connect(settings.app_db_path)
         try:
+            model = current_model(db, settings)
             known = service.resolve_session(db, request.cookies.get(USER_COOKIE), admin=False)
         finally:
             db.close()
         if known is None:
             return short
         path = find_binary(settings.engines_dir, "stockfish")
+        llm = {"enabled": settings.llm_enabled, "model": model}
+        if not settings.llm_enabled or model == "template":
+            llm.update(
+                available=False,
+                reachable=False,
+                model_present=False,
+                status="disabled" if not settings.llm_enabled else "template",
+            )
+        else:
+            llm.update(app.state.llm.readiness(model))
         return {
             **short,
             "engines": {"stockfish": {"available": path is not None}},
-            "llm": {
-                "enabled": settings.llm_enabled,
-                "available": settings.llm_enabled and app.state.llm.available(),
-            },
+            "llm": llm,
+            "backup": {"error": getattr(app.state, "backup_error", None)},
         }
 
     @app.get("/{path:path}", include_in_schema=False)

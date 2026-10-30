@@ -194,11 +194,18 @@ def test_health_without_session_has_no_details(app):
     assert set(r.json()) == {"status", "version"}
 
 
-def test_health_with_session_has_no_paths_or_model(app):
+def test_health_with_session_has_readiness_without_paths(app):
     body = TestClient(app).get("/api/health").json()
-    assert set(body) == {"status", "version", "engines", "llm"}
+    assert set(body) == {"status", "version", "engines", "llm", "backup"}
     assert body["engines"] == {"stockfish": {"available": False}}
-    assert set(body["llm"]) == {"enabled", "available"}
+    assert set(body["llm"]) == {
+        "enabled",
+        "available",
+        "model",
+        "reachable",
+        "model_present",
+        "status",
+    }
 
 
 def test_origin_check(app):

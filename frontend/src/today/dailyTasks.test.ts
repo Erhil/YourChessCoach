@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { setSessionLogin } from '../auth/session'
-import { canSwap, candidates, dailyTasks, loadShown, loadSwap, storeShown, storeSwap, type TaskInput } from './dailyTasks'
+import { canSwap, candidates, focusTheme, dailyTasks, loadShown, loadSwap, storeShown, storeSwap, type TaskInput } from './dailyTasks'
 
 const zero = { puzzles: 0, cards: 0, lesson_positions: 0, games: 0 }
 const input = (p: Partial<TaskInput> = {}): TaskInput => ({
@@ -117,4 +117,10 @@ describe('swap storage', () => {
     setSessionLogin('boris')
     expect(loadShown(D)).toEqual([])
   })
+})
+
+it('rotates all valid focus themes across consecutive days', () => {
+  const seen = ['2026-10-24', '2026-10-25', '2026-10-26'].map((date) => focusTheme(['fork', 'invalid', 'pin', 'mate'], ['fork', 'pin', 'mate'], date))
+  expect(new Set(seen)).toEqual(new Set(['fork', 'pin', 'mate']))
+  expect(focusTheme(['invalid'], ['fork'], D)).toBeNull()
 })

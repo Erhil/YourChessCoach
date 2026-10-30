@@ -1,4 +1,3 @@
-import json
 import sqlite3
 
 from fastapi import APIRouter, HTTPException, Request
@@ -9,7 +8,6 @@ from app.coach.explain import TEMPLATE_MODEL, current_model
 from app.db import Db
 from app.lessons import ask
 from app.lessons.loader import is_completed, list_lessons, position_count
-from app.llm.client import LLMError
 from app.security import ENGINE_HEAVY
 
 router = APIRouter(prefix="/api/lessons")
@@ -95,22 +93,4 @@ def ask_coach(slug: str, body: AskBody, request: Request, db: Db) -> dict:
         facts = ask.position_facts(
             b["fen"], b["solution"], ask.best_line(b["fen"], request.app.state.pool)
         )
-    try:
-        text = llm.chat(ask.SYSTEM, ask.build_user(body.question, context, facts), model)
-        text = ask.render_response(text, context)
-        if text is None:
-            return {"answer": None, "source": None, "reason": ask.NO_ANSWER}
-        verdict = llm.chat(
-            ask.VERIFY_SYSTEM,
-            json.dumps({"question": body.question, "passage": text}, ensure_ascii=False),
-            model,
-        )
-        if not ask.verify_answer(verdict, text, body.question):
-            return {"answer": None, "source": None, "reason": ask.NO_ANSWER}
-    except LLMError as exc:
-        ask.log.warning("lesson question skipped: %s", exc)
-        return {"answer": None, "source": None, "reason": ask.UNAVAILABLE}
-    except ValueError as exc:
-        ask.log.warning("lesson answer rejected: %s", exc)
-        return {"answer": None, "source": None, "reason": ask.INEXACT}
-    return {"answer": text, "source": "llm", "reason": None}
+    return ask.answer_question(body.question, context, facts, llm, model)

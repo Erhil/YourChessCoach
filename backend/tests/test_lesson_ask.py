@@ -17,6 +17,49 @@ ON = dataclasses.replace(base, llm_enabled=True)
 GOOD = "Конь ходит буквой «Г» и бьёт сразу две фигуры. Например, Nf7+ даёт шах и бьёт ферзя."
 
 
+def test_standalone_headings_cannot_be_selected_as_answers():
+    context = "# Topic\n\n## Subtopic\n\nA complete authored paragraph."
+    assert [p["text"] for p in ask.passage_catalog(context)] == ["A complete authored paragraph."]
+
+
+@pytest.mark.parametrize(
+    "passage",
+    [
+        "Если вилка идёт с шахом, соперник должен спасать короля и теряет вторую фигуру.",
+        "Король обязан выйти из-под шаха, и у соперника нет времени спасать вторую фигуру.",
+    ],
+)
+def test_authored_obligation_and_consequence_can_explain_a_reason(passage):
+    assert ask.verify_answer(
+        json.dumps({"verdict": "yes", "evidence": [passage]}),
+        passage,
+        "Почему вилка с шахом сильна?",
+    )
+
+
+@pytest.mark.parametrize(
+    "question,passage,accepted",
+    [
+        ("Какие клетки бьёт пешка с e4?", "Пешка бьёт по диагонали вперёд.", False),
+        ("Какие клетки бьёт пешка с e4?", "Пешка с e4 бьёт d5 и f5.", True),
+        ("Как бьёт пешка?", "Пешка бьёт по диагонали вперёд.", True),
+        ("Можно ли взять на проходе?", "Пешка ходит вперёд на одну или две клетки.", False),
+        ("Что такое взятие на проходе?", "Взятие на проходе описано в этом абзаце.", True),
+    ],
+)
+def test_question_anchors_require_explicit_authored_coverage(question, passage, accepted):
+    selected = ask.passage_catalog(passage)[0]
+    catalog = json.loads(
+        ask.build_user(question, passage, None).split("Отрывки: ", 1)[1].split("\n\n", 1)[0]
+    )
+    assert bool(catalog) == accepted
+    llm = LessonLLM(selected, json.dumps({"verdict": "yes", "evidence": [passage]}))
+    result = ask.answer_question(question, passage, None, llm, "qwen3.5:4b")
+    assert (result["answer"] == passage) == accepted
+    if not accepted:
+        assert result["reason"] == ask.NO_ANSWER
+
+
 def post(llm, settings=ON, **body):
     body.setdefault("question", "Почему конь так хорош для вилки?")
     with TestClient(create_app(settings)) as c:

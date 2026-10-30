@@ -51,6 +51,8 @@ class Settings:
     ssl_certfile: str
     ssl_keyfile: str
     trust_proxy: bool
+    backup_interval_s: float
+    backup_dir: Path | None
     engine_requests_per_user: int
 
 
@@ -88,6 +90,8 @@ def load_settings() -> Settings:
         ssl_certfile=certfile,
         ssl_keyfile=keyfile,
         trust_proxy=_flag(env.get("TRUST_PROXY", "false")),
+        backup_interval_s=max(0.01, float(env.get("BACKUP_INTERVAL_S", 21600))),
+        backup_dir=Path(env["BACKUP_DIR"]) if env.get("BACKUP_DIR") else None,
         engine_requests_per_user=int(env.get("ENGINE_REQUESTS_PER_USER", 3)),
     )
 

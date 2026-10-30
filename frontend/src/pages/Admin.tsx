@@ -167,7 +167,7 @@ export default function Admin() {
           <thead>
             <tr>
               <th>Логин</th><th>Последний визит</th><th>Партий</th><th>Рейтинг задач</th>
-              <th>Решено задач</th><th>Ошибок к повторению</th><th>Ошибок усвоено</th><th>Уроков пройдено</th><th>Ключ MCP</th>
+              <th>Решено задач</th><th>Ошибок к повторению</th><th>Три правильных повторения</th><th>Уроков пройдено</th><th>Ключ MCP</th>
               <th></th>
             </tr>
           </thead>
@@ -180,7 +180,7 @@ export default function Admin() {
                 <td data-label="Рейтинг задач">{Math.round(u.puzzle_rating)}</td>
                 <td data-label="Решено задач">{u.puzzles_solved}</td>
                 <td data-label="Ошибок к повторению">{u.mistakes_due}</td>
-                <td data-label="Ошибок усвоено">{u.mistakes_learned}</td>
+                <td data-label="Три правильных повторения">{u.mistakes_learned}</td>
                 <td data-label="Уроков пройдено">{u.lessons_done}</td>
                 <td data-label="Ключ MCP">{u.mcp_key ? 'есть' : 'нет'}</td>
                 <td className={css.actions}>

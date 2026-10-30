@@ -3,10 +3,11 @@ import { call } from './http'
 
 export interface Health {
   status: string
+  backup?: { error: string | null }
   version: string
   /** Only with a user session; without one the server sends status and version alone. */
   engines?: { stockfish: { available: boolean } }
-  llm?: { enabled: boolean; available: boolean }
+  llm?: { enabled: boolean; available: boolean; model?: string; status?: string; reachable?: boolean; model_present?: boolean }
 }
 
 export const getHealth = () => call<Health>('/api/health')
@@ -79,15 +80,16 @@ export interface AttemptResult {
 }
 
 export const getPuzzleThemes = () => call<PuzzleTheme[]>('/api/puzzles/themes')
-export const getNextPuzzle = (theme: string, opening = '') => {
+export const getNextPuzzle = (theme: string, opening = '', exclude = '') => {
   const q = new URLSearchParams()
+  if (exclude) q.set('exclude', exclude)
   if (theme) q.set('theme', theme)
   if (opening) q.set('opening', opening)
   return call<Puzzle>(`/api/puzzles/next${q.size ? `?${q}` : ''}`)
 }
 export const getPuzzleRating = () => call<{ overall: number }>('/api/puzzles/rating')
-export const sendAttempt = signalled((id: string, solved: boolean, used_hint: boolean) =>
-  call<AttemptResult>(`/api/puzzles/${id}/attempt`, { solved, used_hint }),
+export const sendAttempt = signalled((id: string, solved: boolean, used_hint: boolean, client_id?: string) =>
+  call<AttemptResult>(`/api/puzzles/${id}/attempt`, { solved, used_hint, client_id }),
 )
 export interface CoachResult {
   facts: {

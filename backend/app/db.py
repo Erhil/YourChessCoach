@@ -1,6 +1,8 @@
 import sqlite3
 import threading
+import time
 from collections.abc import Iterator
+from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
@@ -219,6 +221,24 @@ MIGRATIONS: list[str] = [
     ALTER TABLE games ADD COLUMN client_id TEXT;
     CREATE UNIQUE INDEX games_client_id ON games(user_id, client_id);
     """,
+    # Store the exact response for an idempotent puzzle result retry.
+    """
+    CREATE TABLE puzzle_receipts (
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        client_id TEXT NOT NULL,
+        puzzle_id TEXT NOT NULL,
+        solved INTEGER NOT NULL,
+        used_hint INTEGER NOT NULL,
+        response TEXT NOT NULL,
+        PRIMARY KEY (user_id, client_id)
+    );
+    """,
+    # Resume old learned cards gradually, preserving their milestone and streak.
+    """
+    UPDATE mistakes SET due_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now',
+        '+' || (7 + id % 54) || ' days')
+    WHERE learned_at IS NOT NULL;
+    """,
 ]
 
 # A training game (takebacks or hints): it does not count in wins, losses and game achievements.
@@ -263,26 +283,53 @@ def migrate(path: Path) -> None:
         conn.close()
 
 
-def backup(path: Path, keep: int = 7) -> None:
-    """Copy the database to <db folder>/backups/ and keep only the newest `keep` copies.
+def verified_copy(source: Path, target: Path) -> Path:
+    """Create a new consistent database; refuse replacement and invalid input."""
+    source, target = Path(source).resolve(), Path(target).resolve()
+    if not source.is_file():
+        raise FileNotFoundError(source)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    # Exclusive creation also protects against concurrent CLI invocations.
+    with target.open("xb"):
+        pass
+    try:
+        with closing(sqlite3.connect(source.as_uri() + "?mode=ro", uri=True)) as src:
+            if src.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
+                raise ValueError("Source database integrity check failed")
+            with closing(sqlite3.connect(target)) as dst:
+                deadline = time.monotonic() + 30
 
-    Nothing to do when the file does not exist yet (also for ":memory:").
-    """
+                def progress(status, remaining, total):
+                    if time.monotonic() > deadline:
+                        raise TimeoutError("SQLite backup exceeded 30 seconds")
+
+                src.backup(dst, pages=256, progress=progress)
+        with closing(sqlite3.connect(target)) as restored:
+            if restored.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
+                raise ValueError("Restored database integrity check failed")
+            # Read every restored table, including application rows.
+            for (table,) in restored.execute("SELECT name FROM sqlite_master WHERE type='table'"):
+                for _ in restored.execute('SELECT * FROM "' + table.replace('"', '""') + '"'):
+                    pass
+        return target
+    except BaseException:
+        target.unlink(missing_ok=True)
+        raise
+
+
+def backup(path: Path, keep: int = 7, folder: Path | None = None) -> Path | None:
+    """Save a verified SQLite snapshot and retain the latest copies for this database."""
     path = Path(path)
     if not path.is_file():
-        return
-    folder = path.parent / "backups"
-    folder.mkdir(exist_ok=True)
-    target = folder / f"app-{datetime.now():%Y%m%d-%H%M%S-%f}.db"
-    src, dst = sqlite3.connect(path), sqlite3.connect(target)
-    try:
-        src.backup(dst)
-    finally:
-        dst.close()
-        src.close()
-    # The names sort by time, so the first ones are the oldest.
-    for old in sorted(folder.glob("app-*.db"))[:-keep]:
+        return None
+    if keep < 1:
+        raise ValueError("keep must be positive")
+    folder = folder or path.parent / "backups"
+    target = folder / f"{path.stem}-{datetime.now():%Y%m%d-%H%M%S-%f}.db"
+    verified_copy(path, target)
+    for old in sorted(folder.glob(f"{path.stem}-*.db"))[:-keep]:
         old.unlink()
+    return target
 
 
 def get_db(request: Request) -> Iterator[sqlite3.Connection]:

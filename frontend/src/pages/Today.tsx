@@ -11,7 +11,7 @@ import PlanBlock, { nameOf } from '../components/PlanBlock.tsx'
 import WeekBlock from '../components/WeekBlock.tsx'
 import tcss from '../components/Today.module.css'
 import { nextLesson } from '../lessons/nextLesson.ts'
-import { candidates, dailyTasks, loadSwap, storeSwap, type Swap, type Task } from '../today/dailyTasks.ts'
+import { candidates, dailyTasks, focusTheme, loadSwap, storeSwap, type Swap, type Task } from '../today/dailyTasks.ts'
 
 const ZERO = { puzzles: 0, cards: 0, lesson_positions: 0, games: 0 }
 
@@ -53,12 +53,18 @@ export default function Today() {
   let daily: ReturnType<typeof dailyTasks> | null = null
   if (progress !== undefined && lessons && activity !== undefined) {
     const w = progress?.weak_theme
-    const focus = plan?.focus_themes[0]
-    const puzzles = focus
-      ? { to: `/puzzles?theme=${encodeURIComponent(focus)}`, text: `Задачи по теме «${nameOf(themes, focus)}» — 5 задач` }
-      : w
-      ? { to: `/puzzles?theme=${encodeURIComponent(w.key)}`, text: `Задачи по теме «${w.name}» — 5 задач` }
-      : { to: '/puzzles', text: 'Смешанные задачи — 5 задач' }
+    const focus = focusTheme(plan?.focus_themes ?? [], themes.map((t) => t.key), activity?.date ?? '')
+    const training = progress?.training
+    const transfer = training?.transfer
+    const selected = transfer?.theme ?? focus ?? training?.game_theme ?? w?.key
+    const target = training?.target ?? 5
+    const puzzles = {
+      target,
+      to: selected ? `/puzzles?theme=${encodeURIComponent(selected)}${transfer ? `&exclude=${encodeURIComponent(transfer.exclude)}` : ''}` : '/puzzles',
+      text: transfer ? `Новая позиция по знакомой теме — ${target} задач` : selected
+        ? `Задачи по теме «${nameOf(themes, selected)}» — ${target} задач`
+        : `Смешанные задачи — ${target} задач`,
+    }
     const lesson = (plan && planLesson(plan, lessons)) || nextLesson(lessons)
     const list = candidates({ today: activity?.today ?? ZERO, due: progress?.mistakes.due ?? 0, puzzles, lesson })
     daily = dailyTasks(list, swap, activity?.date ?? '')
@@ -85,6 +91,8 @@ export default function Today() {
       ) : (
         <p>{one}</p>
       )}
+      {progress?.training?.provisional && <p className="muted">План предварительный: для выбора слабой темы нужно хотя бы 10 попыток по теме.</p>}
+      {progress?.training?.transfer && <p className="muted">Попробуйте другую позицию по теме после перерыва. Это практика, а не подтверждение переноса навыка.</p>}
       {daily && <DailyTasks tasks={daily.tasks} spare={daily.spare} swapped={daily.swapped || !activity} onSwap={doSwap} date={activity?.date ?? ''} />}
       {activity && <WeekBlock week={activity.week} date={activity.date} onGoal={changeGoal} />}
       {goalError && <p role="alert">Не удалось сохранить цель недели. Попробуйте ещё раз.</p>}
