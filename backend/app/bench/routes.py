@@ -3,6 +3,7 @@
 import base64
 import binascii
 import json
+import math
 import random
 from typing import Literal
 
@@ -22,10 +23,53 @@ NO_RESULTS = "Нет результатов сравнения. Запустит
 
 def load_bench(request: Request) -> dict:
     files = sorted((request.app.state.settings.app_data_dir / "bench").glob("*.json"))
-    if not files:
+    for path in reversed(files):
+        try:
+            bench = json.loads(path.read_text(encoding="utf-8"))
+        except (ValueError, OSError) as exc:
+            raise HTTPException(500, f"Не удалось прочитать отчёт {path.name}") from exc
+        if (
+            isinstance(bench, dict)
+            and "items" not in bench
+            and "created" not in bench
+            and all(key in bench for key in ("machine", "hardware", "inputs"))
+        ):
+            continue  # Runtime benchmark reports also have a results map.
+        # Other tools also wrote reports here. Model reports use items and a model map.
+        # A partial model report is an error, not a reason to use stale results.
+        if isinstance(bench, dict) and (
+            "items" in bench or "created" in bench or isinstance(bench.get("results"), dict)
+        ):
+            if not (
+                isinstance(bench.get("items"), list)
+                and isinstance(bench.get("results"), dict)
+                and isinstance(bench.get("created"), str)
+            ):
+                raise HTTPException(500, f"Неверный формат отчёта сравнения {path.name}")
+            break
+    else:
         raise HTTPException(404, NO_RESULTS)
-    bench = json.loads(files[-1].read_text(encoding="utf-8"))
-    facts = {i["id"]: CoachFacts.model_validate(i["facts"]) for i in bench["items"]}
+    try:
+        facts = {}
+        for item in bench["items"]:
+            if not isinstance(item["id"], str) or not isinstance(item["fen"], str):
+                raise TypeError("invalid item")
+            facts[item["id"]] = CoachFacts.model_validate(item["facts"])
+            item["facts"] = facts[item["id"]].model_dump()
+        for model, result in bench["results"].items():
+            if not isinstance(result["answers"], list):
+                raise TypeError("invalid answers")
+            for answer in result["answers"]:
+                if (
+                    not isinstance(answer["id"], str)
+                    or not isinstance(answer["valid"], bool)
+                    or type(answer["seconds"]) not in (int, float)
+                    or not math.isfinite(answer["seconds"])
+                    or (model != "template" and not isinstance(answer["text"], str))
+                ):
+                    raise ValueError("invalid answer")
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(500, f"Неверный формат отчёта сравнения {path.name}") from exc
     for model, result in bench["results"].items():
         for answer in result["answers"]:
             try:

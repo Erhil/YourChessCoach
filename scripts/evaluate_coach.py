@@ -50,7 +50,9 @@ def main() -> int:
     parser.add_argument(
         "--fixture", type=Path, default=ROOT / "backend/tests/fixtures/lesson_questions.json"
     )
-    parser.add_argument("--output", type=Path, default=ROOT / "data/bench/lesson-quality.json")
+    parser.add_argument(
+        "--output", type=Path, default=ROOT / "data/lesson-quality/lesson-quality.json"
+    )
     args = parser.parse_args()
     if args.repeat < 1:
         parser.error("--repeat must be positive")

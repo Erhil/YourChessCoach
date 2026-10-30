@@ -624,12 +624,12 @@ The end-to-end tests run in desktop Chromium and in the iPhone 13 Mini, iPad (ge
 The last line of the output is `CHECK: PASS` or `CHECK: FAIL (...)`.
 
 Run the real Ollama answer-quality check separately:
-`python scripts/evaluate_coach.py --model qwen3.5:4b --repeat 3 --output data/bench/lesson-quality.json`.
+`python scripts/evaluate_coach.py --model qwen3.5:4b --repeat 3 --output data/lesson-quality/lesson-quality.json`.
 The set includes supported, absent, compound, and reason questions.
 The report counts wrong accepted answers and unnecessary refusals separately; either makes the command fail.
 This check needs a running Ollama and is separate from the fast tests.
 
-Measure a specific machine: `python scripts/benchmark_runtime.py --machine target --model qwen3.5:4b --trials 25 --output data/bench/runtime-target.json`.
+Measure a specific machine: `python scripts/benchmark_runtime.py --machine target --model qwen3.5:4b --trials 25 --output data/runtime/runtime-target.json`.
 Use `--machine development` on the development PC. The script uses an isolated temporary database, an actual lesson, and a legal 40-ply game.
 The report includes settings, latency, successful sample counts, and errors. The first request is not labelled a cold model start.
 A three-sample run checks functionality; it does not establish normal latency or a reliable p95.

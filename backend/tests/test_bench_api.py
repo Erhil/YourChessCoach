@@ -156,3 +156,98 @@ def test_saved_prose_is_not_served_even_when_marked_valid(client):
     _write(data)
     # The template is the only safe model; it cannot form a comparison pair alone.
     assert client.get("/api/admin/bench/pair").status_code == 404
+    results = client.get("/api/admin/bench/results")
+    assert results.status_code == 200
+    assert all(
+        row["valid_pct"] == 0 for row in results.json()["models"] if row["model"] != "template"
+    )
+
+
+@pytest.mark.parametrize("with_model_report", [True, False])
+def test_other_reports_do_not_replace_model_comparison(client, with_model_report):
+    if with_model_report:
+        _write()
+        newer = copy.deepcopy(BENCH)
+        newer["created"] = "2026-02-01T00:00:00"
+        (BENCH_DIR / "20260201-000000.json").write_text(json.dumps(newer), encoding="utf-8")
+    BENCH_DIR.mkdir(parents=True, exist_ok=True)
+    (BENCH_DIR / "m40-quality.json").write_text(
+        json.dumps({"started_utc": "2026-10-30", "results": [{"status": "correct_answer"}]}),
+        encoding="utf-8",
+    )
+    (BENCH_DIR / "runtime.json").write_text(
+        json.dumps({"machine": "development", "hardware": {}, "inputs": {}, "results": {}}),
+        encoding="utf-8",
+    )
+    results = client.get("/api/admin/bench/results")
+    pair = client.get("/api/admin/bench/pair")
+    default = client.post("/api/admin/bench/default", json={"model": "m2"})
+    if with_model_report:
+        assert results.status_code == pair.status_code == default.status_code == 200
+        assert results.json()["bench_created"] == newer["created"]
+        assert {row["model"] for row in results.json()["models"]} == {"m1", "m2", "template"}
+        assert pair.json()["item_id"] == "i1"
+        assert default.json() == {"default_model": "m2"}
+    else:
+        assert results.status_code == pair.status_code == default.status_code == 404
+        assert results.json()["detail"].startswith("Нет результатов сравнения")
+
+
+@pytest.mark.parametrize(
+    "corrupt",
+    [
+        '{"items": [], "results": {}}',
+        "{broken",
+        '{"created":"2026-10-30","items":[],"results":{"m":{}}}',
+    ],
+)
+def test_corrupt_report_is_reported_instead_of_using_old_results(client, corrupt):
+    _write()
+    (BENCH_DIR / "newest.json").write_text(corrupt, encoding="utf-8")
+    response = client.get("/api/admin/bench/results")
+    assert response.status_code == 500
+    assert "newest.json" in response.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "section,field,value",
+    [
+        ("result", "answers", None),
+        ("result", "answers", {}),
+        ("item", "facts", {}),
+        ("item", "fen", None),
+        ("answer", "seconds", None),
+        ("answer", "seconds", "1.0"),
+        ("answer", "valid", None),
+        ("answer", "id", []),
+        ("answer", "text", None),
+    ],
+)
+def test_partial_nested_report_returns_filename_for_all_consumers(client, section, field, value):
+    _write()
+    partial = copy.deepcopy(BENCH)
+    target = {
+        "result": partial["results"]["m1"],
+        "item": partial["items"][0],
+        "answer": partial["results"]["m1"]["answers"][0],
+    }[section]
+    if value is None:
+        del target[field]
+    else:
+        target[field] = value
+    (BENCH_DIR / "newest.json").write_text(json.dumps(partial), encoding="utf-8")
+    responses = [
+        client.get("/api/admin/bench/results"),
+        client.get("/api/admin/bench/pair"),
+        client.post("/api/admin/bench/default", json={"model": "m2"}),
+        client.post(
+            "/api/admin/bench/vote",
+            json={
+                "token": base64.urlsafe_b64encode(json.dumps(["i1", "m1", "m2"]).encode()).decode(),
+                "winner": "a",
+            },
+        ),
+    ]
+    for response in responses:
+        assert response.status_code == 500
+        assert response.json()["detail"] == "Неверный формат отчёта сравнения newest.json"

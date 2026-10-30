@@ -624,12 +624,12 @@ E2E-тесты идут в настольном Chromium и в профилях 
 Последняя строка вывода — `CHECK: PASS` или `CHECK: FAIL (...)`.
 
 Качество ответов через настоящую Ollama проверяется отдельно:
-`python scripts/evaluate_coach.py --model qwen3.5:4b --repeat 3 --output data/bench/lesson-quality.json`.
+`python scripts/evaluate_coach.py --model qwen3.5:4b --repeat 3 --output data/lesson-quality/lesson-quality.json`.
 Набор содержит вопросы с ответом, без ответа, составные вопросы и вопросы о причинах.
 Отчёт отдельно считает неподходящие ответы и лишние отказы; любой такой результат завершает проверку с ошибкой.
 Эта проверка требует работающей Ollama и не входит в быстрые тесты.
 
-Замер на конкретной машине: `python scripts/benchmark_runtime.py --machine target --model qwen3.5:4b --trials 25 --output data/bench/runtime-target.json`.
+Замер на конкретной машине: `python scripts/benchmark_runtime.py --machine target --model qwen3.5:4b --trials 25 --output data/runtime/runtime-target.json`.
 На машине разработки укажите `--machine development`. Скрипт использует отдельную временную базу, настоящий урок и легальную партию из 40 полуходов.
 Отчёт содержит настройки, задержки, число успешных замеров и ошибки. Первый запрос не считается холодным запуском модели.
 Короткий прогон с тремя замерами проверяет работоспособность; он не подтверждает обычную задержку или надёжный p95.
