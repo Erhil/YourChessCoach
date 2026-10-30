@@ -1,3 +1,4 @@
+import json
 import sqlite3
 
 from fastapi import APIRouter, HTTPException, Request
@@ -96,11 +97,19 @@ def ask_coach(slug: str, body: AskBody, request: Request, db: Db) -> dict:
         )
     try:
         text = llm.chat(ask.SYSTEM, ask.build_user(body.question, context, facts), model)
+        text = ask.render_response(text, context)
+        if text is None:
+            return {"answer": None, "source": None, "reason": ask.NO_ANSWER}
+        verdict = llm.chat(
+            ask.VERIFY_SYSTEM,
+            json.dumps({"question": body.question, "passage": text}, ensure_ascii=False),
+            model,
+        )
+        if not ask.verify_answer(verdict, text, body.question):
+            return {"answer": None, "source": None, "reason": ask.NO_ANSWER}
     except LLMError as exc:
         ask.log.warning("lesson question skipped: %s", exc)
         return {"answer": None, "source": None, "reason": ask.UNAVAILABLE}
-    try:
-        text = ask.render_response(text, context)
     except ValueError as exc:
         ask.log.warning("lesson answer rejected: %s", exc)
         return {"answer": None, "source": None, "reason": ask.INEXACT}

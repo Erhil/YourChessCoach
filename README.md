@@ -277,8 +277,8 @@ Restart the app after a change.
 | `ADMIN_TOKEN` | empty | Token for `/admin`, at least 20 characters. `setup.py` creates it. Without it the admin page is closed. |
 | `LLM_ENABLED` | `true` | `false` turns the LLM off; the app shows template texts. |
 | `LLM_BASE_URL` | `http://localhost:11434` | Address of the Ollama server. |
-| `LLM_MODEL` | `gemma4:e2b` | Default model. A model chosen in "Model comparison" overrides it. |
-| `LLM_TIMEOUT_S` | `20` | LLM answer timeout in seconds. After it, the app shows the template text. |
+| `LLM_MODEL` | `qwen3.5:4b` | Default model. A model chosen in "Model comparison" overrides it. |
+| `LLM_TIMEOUT_S` | `20` | Timeout for one Ollama request, in seconds. Lesson questions use selection and verification requests. |
 | `COOKIE_SECURE` | `false`, or `true` with a certificate | Send cookies only over HTTPS. |
 | `APP_SSL_CERTFILE` | empty | Path to the certificate (PEM). With the key file, the server uses HTTPS. |
 | `APP_SSL_KEYFILE` | empty | Path to the private key (PEM). |
@@ -309,7 +309,9 @@ If you change `APP_DATA_DIR` or `ENGINES_DIR`, move the files to the new folder 
 The LLM coach selects study advice and lesson passages through local [Ollama](https://ollama.com).
 Chess explanations come from templates built from engine facts. The label “тренер (ИИ)” means the model selected advice or a lesson passage.
 Without Ollama, the core training features use template texts. Free lesson questions are unavailable.
-The model can select a passage that is related to the topic but does not answer the full question.
+The coach checks the selected passage against the full question and verifies its quoted evidence.
+If a complete answer cannot be confirmed, it says it did not find one in the lesson.
+This conservative check can decline a question even when relevant text exists.
 
 1. Install Ollama.
    - Windows:
@@ -322,7 +324,7 @@ The model can select a passage that is related to the topic but does not answer 
      ```
 2. Download the default model:
    ```bash
-   ollama pull gemma4:e2b
+   ollama pull qwen3.5:4b
    ```
 3. Start the app. It connects to `http://localhost:11434`.
 

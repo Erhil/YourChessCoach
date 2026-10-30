@@ -26,11 +26,14 @@ def post(llm, settings=ON, **body):
 
 def test_valid_answer_is_returned():
     lesson = load_lesson(base.lessons_dir / "08-fork.md")
-    selected = ask.passage_catalog(ask.lesson_context(lesson))[0]
-    llm = FakeLLM(json.dumps({"passage": selected["id"]}))
+    selected = next(
+        p
+        for p in ask.passage_catalog(ask.lesson_context(lesson))
+        if p["text"].startswith("Конь. Он ходит")
+    )
+    llm = LessonLLM(selected, json.dumps({"verdict": "yes", "evidence": selected["text"]}))
     out = post(llm).json()
-    catalog = json.loads(llm.calls[0][1].split("Отрывки: ", 1)[1].split("\n\n", 1)[0])
-    assert out == {"answer": to_display(catalog[0]["text"]), "source": "llm", "reason": None}
+    assert out == {"answer": to_display(selected["text"]), "source": "llm", "reason": None}
     assert "Почему конь так хорош" in llm.calls[0][1]
 
 
@@ -68,7 +71,6 @@ def test_position_facts_reach_the_prompt():
     "payload",
     [
         GOOD,
-        '{"passage":null}',
         '{"passage":true}',
         '{"passage":0,"text":"Соперник ставит мат."}',
         '{"passage":999}',
@@ -126,3 +128,114 @@ def test_explicit_passage_id_returns_whole_text_after_reordering():
     reordered = "\n\n".join(reversed(ask.passages(context)))
     assert ask.render_response(payload, context) == knight["text"]
     assert ask.render_response(payload, reordered) == knight["text"]
+
+
+class LessonLLM:
+    """Network boundary with separate selection and verification responses."""
+
+    def __init__(self, passage, verdict):
+        self.responses = iter([json.dumps({"passage": passage["id"]}), verdict])
+        self.calls = []
+
+    def chat(self, system, user, model):
+        self.calls.append((system, user, model))
+        response = next(self.responses)
+        if response is None:
+            from app.llm.client import LLMError
+
+            raise LLMError("verification unavailable")
+        return response
+
+
+def test_valid_but_irrelevant_selection_has_honest_no_answer():
+    lesson = load_lesson(base.lessons_dir / "08-fork.md")
+    selected = ask.passage_catalog(ask.lesson_context(lesson))[0]
+    llm = LessonLLM(selected, '{"verdict":"no_answer","evidence":null}')
+    question = "Как поставить мат двумя слонами?"
+    out = post(llm, question=question).json()
+    assert out == {"answer": None, "source": None, "reason": ask.NO_ANSWER}
+    assert json.loads(llm.calls[1][1]) == {
+        "question": question,
+        "passage": to_display(selected["text"]),
+    }
+    assert llm.calls[0][2] == llm.calls[1][2]
+
+
+def test_null_selection_has_honest_no_answer():
+    llm = FakeLLM('{"passage":null}')
+    assert post(llm).json() == {"answer": None, "source": None, "reason": ask.NO_ANSWER}
+    assert len(llm.calls) == 1
+
+
+@pytest.mark.parametrize(
+    "question,starts,accepted",
+    [
+        ("Почему конь прыгает буквой Г, а не на две клетки по диагонали?", "Конь ходит", False),
+        ("Как ходит конь?", "Конь ходит", True),
+        ("Почему вилка с шахом сильна?", "Конь одновременно", True),
+    ],
+)
+def test_reason_request_requires_authored_cause(tmp_path, question, starts, accepted):
+    lesson = load_lesson(base.lessons_dir / "01-board-and-moves.md")
+    selected = next(
+        p for p in ask.passage_catalog(ask.lesson_context(lesson)) if p["text"].startswith(starts)
+    )
+    llm = LessonLLM(selected, json.dumps({"verdict": "yes", "evidence": [selected["text"]]}))
+    settings = dataclasses.replace(ON, app_db_path=tmp_path / "reason.db")
+    with TestClient(create_app(settings)) as client:
+        client.app.state.llm = llm
+        out = client.post("/api/lessons/board-and-moves/ask", json={"question": question}).json()
+    if accepted:
+        assert out == {"answer": selected["text"], "source": "llm", "reason": None}
+    else:
+        assert out == {"answer": None, "source": None, "reason": ask.NO_ANSWER}
+    assert json.loads(llm.calls[1][1])["question"] == question
+
+
+def test_evidence_spans_allow_exact_reordering_and_quote_wrappers():
+    passage = "Конь ходит буквой «Г». Он перепрыгивает через другие фигуры."
+    evidence = ["«Он перепрыгивает через другие фигуры.»", "Конь ходит буквой «Г»."]
+    payload = json.dumps({"verdict": "yes", "evidence": evidence})
+    assert ask.verify_answer(payload, passage, "Как ходит конь?")
+    evidence.append("Он ходит назад на две клетки.")
+    with pytest.raises(ValueError, match="evidence"):
+        ask.verify_answer(json.dumps({"verdict": "yes", "evidence": evidence}), passage, "Как?")
+
+
+def test_castling_definition_does_not_explain_a_requested_reason(tmp_path):
+    lesson = load_lesson(base.lessons_dir / "06-opening-principles.md")
+    selected = next(
+        p for p in ask.passage_catalog(ask.lesson_context(lesson)) if "две клетки" in p["text"]
+    )
+    llm = LessonLLM(selected, json.dumps({"verdict": "yes", "evidence": selected["text"]}))
+    settings = dataclasses.replace(ON, app_db_path=tmp_path / "castling.db")
+    with TestClient(create_app(settings)) as client:
+        client.app.state.llm = llm
+        out = client.post(
+            "/api/lessons/opening-principles/ask",
+            json={
+                "question": "Почему при длинной рокировке король проходит две клетки, а ладья три?"
+            },
+        ).json()
+    assert out == {"answer": None, "source": None, "reason": ask.NO_ANSWER}
+
+
+@pytest.mark.parametrize(
+    "verdict,reason",
+    [
+        ('{"verdict":"yes","evidence":"invented evidence"}', ask.INEXACT),
+        ('{"verdict":"yes","evidence":""}', ask.INEXACT),
+        ('{"verdict":"maybe","evidence":null}', ask.INEXACT),
+        ('{"verdict":"no_answer","evidence":null,"extra":true}', ask.INEXACT),
+        ("not JSON", ask.INEXACT),
+        (None, ask.UNAVAILABLE),
+    ],
+)
+def test_verification_failure_stays_distinct(verdict, reason):
+    lesson = load_lesson(base.lessons_dir / "08-fork.md")
+    selected = ask.passage_catalog(ask.lesson_context(lesson))[0]
+    assert post(LessonLLM(selected, verdict)).json() == {
+        "answer": None,
+        "source": None,
+        "reason": reason,
+    }

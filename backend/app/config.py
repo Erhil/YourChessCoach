@@ -80,7 +80,7 @@ def load_settings() -> Settings:
         coach_blunder=float(env.get("COACH_BLUNDER", 0.30)),
         llm_enabled=env.get("LLM_ENABLED", "true").lower() not in ("0", "false", "no", "off"),
         llm_base_url=env.get("LLM_BASE_URL", "http://localhost:11434"),
-        llm_model=env.get("LLM_MODEL", "gemma4:e2b"),
+        llm_model=env.get("LLM_MODEL", "qwen3.5:4b"),
         llm_timeout_s=float(env.get("LLM_TIMEOUT_S", 20)),
         admin_token=env.get("ADMIN_TOKEN", ""),
         # Secure cookies and HSTS are on by default when uvicorn serves TLS itself.
