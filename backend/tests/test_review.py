@@ -97,3 +97,68 @@ def test_key_moments_drop_candidates_that_facts_call_good(monkeypatch):
         "inaccuracy",
         "mistake",
     ]
+
+
+def test_saved_review_counts_all_player_blunders_not_cards(monkeypatch, tmp_path):
+    from dataclasses import replace
+
+    from app.config import settings
+    from app.db import connect
+    from app.review import routes
+
+    # Fake only the UCI engine boundary. Use the real analysis, facts and route code.
+    pgn = "1. e4 d6 2. Nf3 g6 3. Nc3 Bg7 4. Bc4 c6 5. d4 b5 6. Bd3 Nf6 7. h3 Bb7 *"
+    board, moves = routes.parse_pgn(pgn)
+    played = {}
+    for move in moves:
+        played[board.fen()] = move
+        board.push(move)
+
+    class Pool:
+        def analyse(self, board, depth, multipv=1):
+            legal = list(board.legal_moves)
+            if not legal:
+                return None, []
+            best = next((m for m in legal if m != played.get(board.fen())), legal[0])
+            return None, [
+                {
+                    "score": {"cp": 1000 if board.turn else -1000, "mate": None},
+                    "pv_uci": [best.uci()],
+                    "pv_san": [board.san(best)],
+                }
+            ]
+
+    monkeypatch.setattr("app.progress.routes.now_utc", lambda: "2026-10-21T12:00:00Z")
+    cfg = replace(settings, app_db_path=tmp_path / "review.db")
+    with TestClient(create_app(cfg)) as c:
+        c.app.state.pool = Pool()
+        gid = c.post(
+            "/api/games", json={"pgn": pgn, "player_color": "white", "result": "*"}
+        ).json()["id"]
+        db = connect(cfg.app_db_path)
+        with db:
+            db.execute("UPDATE games SET created_at = '2026-10-13T00:00:00Z' WHERE id = ?", (gid,))
+        for _ in range(2):
+            response = c.post("/api/review", json={"game_id": gid})
+            assert response.status_code == 200, response.text
+            assert response.json()["summary"]["blunder"] == 7
+            assert len(response.json()["key_moments"]) == 5
+            row = db.execute(
+                "SELECT blunders, created_at FROM games WHERE id = ?", (gid,)
+            ).fetchone()
+            assert tuple(row) == (7, "2026-10-13T00:00:00Z")
+        progress = c.get("/api/progress?tz=0").json()
+        assert progress["weeks"][6]["blunders_per_10_moves"] == 10.0
+        assert progress["weeks"][7]["blunders_per_10_moves"] is None
+        from app.mcp.tools import Ctx, _games_block
+
+        uid = db.execute("SELECT user_id FROM games WHERE id = ?", (gid,)).fetchone()[0]
+        mcp_games, _ = _games_block(Ctx(c.app, db, uid))
+        for field in (
+            "blunders",
+            "analyzed_games",
+            "analyzed_player_moves",
+            "blunders_per_10_moves",
+        ):
+            assert mcp_games[field] == progress["games"][field]
+        db.close()

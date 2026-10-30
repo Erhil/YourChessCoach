@@ -1,6 +1,7 @@
+import type { GameRecord } from '../api/client'
 import { sessionKey } from '../auth/session'
 // Keeps the running game and the last setup choice in localStorage (Safari may reload the tab).
-export type StoredGame = { id: number; color: 'white' | 'black'; level: number; sans: string[]; hints?: number; takebacks?: number }
+export type StoredGame = { clientId?: string; id: number; color: 'white' | 'black'; level: number; sans: string[]; hints?: number; takebacks?: number }
 export type Prefs = { color: 'white' | 'black' | 'random'; level: number }
 
 const PREFS_KEY = 'play.prefs'
@@ -38,3 +39,35 @@ export function loadPrefs(): Prefs {
   return { color, level: typeof p?.level === 'number' ? p.level : 800 }
 }
 export const storePrefs = (p: Prefs) => write(PREFS_KEY, p)
+
+// Capture the key at mount. A late response cannot write into another login's queue.
+export const pendingKey = () => sessionKey('play.pending')
+// Each save owns one key. Completing one request cannot overwrite another tab's save.
+export function loadPending(key: string): GameRecord[] {
+  // Upgrade the whole-queue format without dropping records if a write fails.
+  const legacy = read(key) as GameRecord[] | null
+  if (Array.isArray(legacy)) {
+    for (const game of legacy) {
+      const name = `${key}:${game.client_id}`
+      if (localStorage.getItem(name) === null) localStorage.setItem(name, JSON.stringify(game))
+    }
+    localStorage.removeItem(key)
+  }
+  const games: GameRecord[] = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const name = localStorage.key(i)
+    if (name?.startsWith(`${key}:`)) {
+      const game = read(name) as GameRecord | null
+      if (game) games.push(game)
+    }
+  }
+  return games
+}
+export function storePending(key: string, game: GameRecord) {
+  localStorage.setItem(`${key}:${game.client_id}`, JSON.stringify(game))
+  window.dispatchEvent(new Event('pending-games'))
+}
+export function removePending(key: string, id: string) {
+  localStorage.removeItem(`${key}:${id}`)
+  window.dispatchEvent(new Event('pending-games'))
+}

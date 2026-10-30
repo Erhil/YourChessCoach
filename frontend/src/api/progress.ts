@@ -4,10 +4,13 @@ import { call } from './http'
 export interface WeekSummary {
   /** The Monday, YYYY-MM-DD. */
   start: string
+  games: number
   active_days: number
   puzzles_solved: number
   rating_change: number
   player_moves: number
+  analyzed_player_moves: number
+  analyzed_games: number
   blunders_per_10_moves: number | null
 }
 
@@ -20,9 +23,11 @@ export interface Progress {
     wins: number
     losses: number
     draws: number
+    analyzed_player_moves: number
+    analyzed_games: number
     player_moves: number
     blunders: number
-    blunders_per_10_moves: number
+    blunders_per_10_moves: number | null
     /** Training games (with a takeback or a hint); not in wins, losses and draws. */
     training?: number
   }

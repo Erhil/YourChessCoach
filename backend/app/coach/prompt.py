@@ -1,4 +1,4 @@
-"""Prompt for the LLM coach: compact facts as JSON plus the template text as a draft."""
+"""Prompt for the LLM coach: compact facts and trusted prose for study-advice selection."""
 
 import json
 import re
@@ -11,28 +11,18 @@ from app.coach.why import Reason
 GLYPHS = {"♔": "K", "♕": "Q", "♖": "R", "♗": "B", "♘": "N"}
 GLYPHS |= {"♚": "K", "♛": "Q", "♜": "R", "♝": "B", "♞": "N"}
 
-# Rules of the answer text, shared with the question prompt in ask.py.
-RULES = (
-    "Используй ТОЛЬКО ходы и поля, которые есть в фактах. "
-    "Ходы пиши в SAN латинскими буквами точно так, как в фактах (например Nf3, Qxh4, O-O). "
-    "Не выдумывай ходы и поля. Не называй числа оценки позиции. "
-    "Фигуры на доске называй словами с полем: «конь на f3», «ферзь на h4». "
-    "Обращайся к ученику на «вы». Без списков и без разметки."
-)
+# The model selects study advice. It never writes user-visible chess claims.
+CONTRACT_VERSION = "trusted-coach-v1"
+TIPS = {
+    "none": "",
+    "repeat": "После партии вернитесь к этой позиции и повторите проверку.",
+    "explain": "Закрепите этот разбор: попробуйте объяснить причину хода своими словами.",
+}
 SYSTEM = (
-    "Ты — дружелюбный шахматный тренер для новичка. Тебе дают факты о ходе игрока в JSON "
-    "и черновик объяснения. Перепиши черновик по-русски в 2–4 коротких предложениях: "
-    "что случилось, почему, как заметить это в следующий раз. "
-    + RULES
-    + " Ход в SAN пиши, только если он есть среди ходов в фактах. Упоминай не больше двух ходов. "
-    "Если в фактах есть reasons_against (что сломал ход ученика) или reasons_missed (что давал "
-    "лучший ход), назови причину конкретно, с фигурой и полем, как учитель ученику: "
-    "«конь ушёл с f3 и больше не защищает пешку e5». Не называй причину, которой нет в фактах. "
-    "Ход игрока — это ход ученика, ответ — ход соперника; не путай их. "
-    "Сильнейший ответ соперника из фактов (refutation, threat) называй как возможность: "
-    "«соперник может ответить Qxg5», а не «соперник ответит Qxg5»: настоящий соперник "
-    "может сыграть другой ход. Мат в фактах (allowed_mate_in) называй как факт. "
-    "Пат — это ничья."
+    "Выбери дополнительный учебный совет для новичка по фактам и готовому разбору. "
+    'Ответь только JSON вида {"tip":"repeat"}. '
+    "Допустимые значения tip перечислены в запросе. Не добавляй других полей или текста. "
+    "Не переписывай разбор и ходы в SAN. Если дополнительный совет не нужен, выбери none."
 )
 
 
@@ -86,4 +76,4 @@ def compact_facts(f: CoachFacts) -> dict:
 def build_messages(facts: CoachFacts, draft: str | None = None) -> tuple[str, str]:
     draft = figurine_to_san(draft if draft is not None else explain(facts))
     data = json.dumps(compact_facts(facts), ensure_ascii=False, separators=(",", ":"))
-    return SYSTEM, f"Факты: {data}\nЧерновик: {draft}"
+    return SYSTEM, f"Факты: {data}\nРазбор: {draft}\nСоветы: {json.dumps(TIPS, ensure_ascii=False)}"

@@ -67,7 +67,7 @@ export function WeekTile({ a }: { a: Activity | null | undefined }) {
 /** The blunder rate of the latest week with games and its change; down is good. */
 export function BlundersTile({ weeks }: { weeks: Progress['weeks'] }) {
   const t = blunderTrend(weeks ?? [])
-  if (!t) return <Tile label="Зевки на 10 ходов" value="—"><p className="muted">Сыграйте партию, чтобы увидеть</p></Tile>
+  if (!t) return <Tile label="Зевки на 10 ходов" value="—"><p className="muted">Сохраните и разберите партию, чтобы увидеть</p></Tile>
   const c = t.change
   const change =
     c === null ? null : c === 0 ? { text: 'без изменений', good: false } : { text: `${signed(c, 1)} · ${c < 0 ? 'лучше' : 'хуже'}, чем ${t.than}`, good: c < 0 }
@@ -75,6 +75,7 @@ export function BlundersTile({ weeks }: { weeks: Progress['weeks'] }) {
   const texts = shown.map((w) => `с ${dayMonth(w.start)}: ${comma(w.blunders_per_10_moves!)}`)
   return (
     <Tile label="Зевки на 10 ходов" value={comma(t.value)} change={change}>
+      <p className="muted">Учтено партий за неделю: {t.latest.analyzed_games} из {t.latest.games}</p>
       <Chart label={`Зевки на 10 ходов по неделям: ${texts.join('; ')}`} idle={`Неделя с ${dayMonth(t.latest.start)}`} texts={texts}>
         <Bars values={shown.map((w) => w.blunders_per_10_moves!)} />
       </Chart>

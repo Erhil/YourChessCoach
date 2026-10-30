@@ -100,13 +100,12 @@ def test_termination_must_be_a_known_value(client):
 def test_blunders_are_optional_stored_and_validated(client, db_path):
     old = client.post("/api/games", json=body()).json()["id"]  # an old client without the field
     new = client.post("/api/games", json=body(blunders=2)).json()["id"]
-    edge = client.post("/api/games", json=body(blunders=600)).json()["id"]
-    for bad in (-1, 601, "x", 1.5):
+    for bad in (-1, 3, 600, 601, "x", 1.5):
         assert client.post("/api/games", json=body(blunders=bad)).status_code == 422
     conn = connect(db_path)
     rows = dict(conn.execute("SELECT id, blunders FROM games").fetchall())
     conn.close()
-    assert rows == {old: None, new: 2, edge: 600}
+    assert rows == {old: None, new: 2}
 
 
 def test_takebacks_and_hints_are_optional_stored_and_validated(client, db_path):
@@ -136,6 +135,37 @@ def test_migration_11_gives_old_games_zero(tmp_path):
     raw.close()
     migrate(path)
     raw = sqlite3.connect(path)
-    assert raw.execute("PRAGMA user_version").fetchone()[0] == len(MIGRATIONS) == 12
+    assert raw.execute("PRAGMA user_version").fetchone()[0] == len(MIGRATIONS) == 13
     assert raw.execute("SELECT takebacks, hints FROM games").fetchall() == [(0, 0)]
     raw.close()
+
+
+def test_retry_save_returns_original_game_and_is_scoped_to_user(client):
+    from app.auth import service
+
+    payload = body(client_id="persistent-browser-game")
+    first = client.post("/api/games", json=payload)
+    retry = client.post("/api/games", json=payload)
+    assert first.status_code == retry.status_code == 201
+    assert retry.json() == first.json()
+    assert len(client.get("/api/games").json()) == 1
+    db = connect(client.app.state.settings.app_db_path)
+    try:
+        service.create_user(db, "retry-other", "aaaa-bbbb-cccc-dddd")
+    finally:
+        db.close()
+    assert (
+        client.post(
+            "/api/auth/login", json={"login": "retry-other", "token": "aaaa-bbbb-cccc-dddd"}
+        ).status_code
+        == 200
+    )
+    other = client.post("/api/games", json=payload)
+    assert other.status_code == 201
+    assert other.json() != first.json()
+    assert len(client.get("/api/games").json()) == 1
+
+
+def test_partial_illegal_pgn_is_rejected(client):
+    assert client.post("/api/games", json=body("1. e4 e5 2. Ke5 *")).status_code == 422
+    assert client.get("/api/games").json() == []

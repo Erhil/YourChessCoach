@@ -1,4 +1,6 @@
 import json
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
 
 import httpx
 import pytest
@@ -59,3 +61,44 @@ def test_connection_error_marks_unavailable_for_30s(monkeypatch):
     now[0] += 2
     assert c.chat("s", "u", "m") == "ok"
     assert len(calls) == 2
+
+
+def test_local_ollama_bypasses_environment_proxy(monkeypatch):
+    seen = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen.append(self.path)
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'{"models": []}')
+
+        def do_POST(self):
+            seen.append(self.path)
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'{"message": {"content": "local answer"}}')
+
+        def log_message(self, *args):
+            pass
+
+    # A closed local port makes any accidental proxy use fail immediately.
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"):
+        monkeypatch.setenv(key, "http://127.0.0.1:1")
+        monkeypatch.delenv(key.lower(), raising=False)
+    monkeypatch.setenv("NO_PROXY", "")
+    monkeypatch.delenv("no_proxy", raising=False)
+    client = OllamaClient(f"http://localhost:{server.server_port}", 2)
+    try:
+        assert client.available()
+        assert client.chat("system", "user", "test-model") == "local answer"
+        assert seen == ["/api/tags", "/api/chat"]
+    finally:
+        client._http.close()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)

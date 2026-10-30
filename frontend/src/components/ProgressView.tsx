@@ -44,7 +44,8 @@ export function ProgressView({ d, chartTitle }: { d: Progress; chartTitle?: stri
         Сыграно: {g.count}. Побед: {g.wins}, ничьих: {g.draws}, поражений: {g.losses}.
         {(g.training ?? 0) > 0 && ` Тренировочных: ${g.training}, их результат не считается.`}
       </p>
-      {g.player_moves > 0 && <p>Зевков на 10 ходов: {g.blunders_per_10_moves.toFixed(1)}</p>}
+      {g.player_moves > 0 && <p>Зевков на 10 ходов: {g.blunders_per_10_moves === null ? 'нет данных' : g.blunders_per_10_moves.toFixed(1)}</p>}
+      {g.count > 0 && <p className="muted">Учтено партий: {g.analyzed_games} из {g.count}. Разберите остальные партии, чтобы учесть их зевки.</p>}
       <h2>Уроки</h2>
       <p>
         Уроки: {d.lessons.completed} из {d.lessons.total} пройдено

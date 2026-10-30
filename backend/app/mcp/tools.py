@@ -28,6 +28,7 @@ from app.mcp.plan import insert_plan, latest_plan
 from app.mistakes.srs import now_utc
 from app.openings.lookup import family_of, find_opening
 from app.openings.names import ru_name
+from app.progress.routes import blunder_stats
 from app.puzzles.routes import _opening_counts
 from app.puzzles.themes import OFFERED, theme_name
 from app.review.routes import BAD, ReviewRequest, review
@@ -220,6 +221,12 @@ def _games_block(ctx: Ctx) -> tuple[dict, list[dict]]:
     counts = ("games", "wins", "losses", "draws")
     games = {
         "count": total,
+        **blunder_stats(
+            ctx.db.execute(
+                "SELECT player_color, moves_count, blunders, pgn FROM games WHERE user_id = ?",
+                (ctx.user_id,),
+            ).fetchall()
+        ),
         "training": training,
         "scanned": len(rows),
         "average_plies": round(sum(plies) / len(plies), 1) if plies else None,

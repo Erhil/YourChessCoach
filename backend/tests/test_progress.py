@@ -65,7 +65,9 @@ def test_empty_database(client):
             "training": 0,
             "player_moves": 0,
             "blunders": 0,
-            "blunders_per_10_moves": 0.0,
+            "analyzed_games": 0,
+            "analyzed_player_moves": 0,
+            "blunders_per_10_moves": None,
         },
         "lessons": {"completed": 0, "total": 2},
         "mistakes": {"total": 0, "due": 0, "learned": 0},
@@ -129,8 +131,10 @@ def test_numbers_after_inserts(client, db_path):
         "draws": 1,
         "training": 0,
         "player_moves": 48,
-        "blunders": 2,
-        "blunders_per_10_moves": 0.42,
+        "blunders": 0,
+        "analyzed_games": 0,
+        "analyzed_player_moves": 0,
+        "blunders_per_10_moves": None,
     }
     assert data["lessons"] == {"completed": 1, "total": 2}
     assert data["mistakes"] == {"total": 4, "due": 1, "learned": 0}
@@ -245,6 +249,10 @@ def test_weeks_start_mondays_and_rating_change(weekly, db_path):
         "puzzles_solved": 2,
         "rating_change": 40,
         "player_moves": 0,
+        "games": 0,
+        "blunders": 0,
+        "analyzed_games": 0,
+        "analyzed_player_moves": 0,
         "blunders_per_10_moves": None,
     }
     assert weeks[5]["rating_change"] == -10 and weeks[5]["puzzles_solved"] == 0
@@ -275,6 +283,7 @@ def test_blunders_per_10_moves_by_week(weekly, db_path):
             ("play", "5", "blunder", "2026-10-06T11:00:00Z"),
         ],
     )
+    run(db_path, "UPDATE games SET blunders = ? WHERE moves_count = ?", [(1, 41), (1, 40), (0, 10)])
     weeks = weekly.get("/api/progress", params={"tz": 0}).json()["weeks"]
     # 21 + 20 own moves and 2 blunders from games and play.
     assert weeks[6]["player_moves"] == 41 and weeks[6]["blunders_per_10_moves"] == 0.49
@@ -301,6 +310,7 @@ def test_sunday_evening_events_fall_into_local_week(weekly, db_path, tz, week):
         " 'n', 0, 0)",
         [(stamp,)],
     )
+    run(db_path, "UPDATE games SET blunders = 1", [()])
     weeks = weekly.get("/api/progress", params={"tz": tz}).json()["weeks"]
     other = 13 - week  # the other one of weeks 6 and 7
     # 10 own moves of white in 20 half-moves and 1 blunder.
@@ -330,3 +340,67 @@ def test_weeks_count_only_this_user(weekly, db_path):
 @pytest.mark.parametrize("tz", [-841, 841, "x"])
 def test_progress_tz_validation(client, tz):
     assert client.get("/api/progress", params={"tz": tz}).status_code == 422
+
+
+def test_saved_game_rate_ignores_cards_and_unknown_games(weekly, db_path):
+    run(
+        db_path,
+        "INSERT INTO games (user_id, created_at, player_color, result, moves_count, pgn, blunders, hints)"
+        " VALUES ((SELECT MIN(id) FROM users), '2026-10-13T10:00:00Z', 'white', '1-0', ?, 'x', ?, ?)",
+        [(20, 2, 1), (80, None, 0)],
+    )
+    before = weekly.get("/api/progress?tz=0").json()
+    run(
+        db_path,
+        "INSERT INTO mistakes (user_id, source, ref, fen, best_uci, best_san, classification, created_at, due_at, reviews, lapses)"
+        " VALUES ((SELECT MIN(id) FROM users), ?, ?, 'f', 'e2e4', 'e4', 'blunder', ?, 'n', 0, 0)",
+        [("play", "live:1", NOW), ("game", "1:1", NOW), ("play", "unsaved:1", NOW)],
+    )
+    after = weekly.get("/api/progress?tz=0").json()
+    assert after["games"] == before["games"]
+    assert after["weeks"] == before["weeks"]
+    g = after["games"]
+    assert (g["player_moves"], g["analyzed_player_moves"], g["analyzed_games"]) == (50, 10, 1)
+    assert g["blunders_per_10_moves"] == 2.0
+    assert g["wins"] == 1 and g["training"] == 1
+    assert after["weeks"][6]["blunders_per_10_moves"] == 2.0
+    assert after["weeks"][7]["blunders_per_10_moves"] is None
+    run(db_path, "DELETE FROM mistakes", [()])
+    assert weekly.get("/api/progress?tz=0").json()["games"] == g
+
+
+@pytest.mark.parametrize(
+    "pgn,color,blunders,expected_moves",
+    [
+        ('[SetUp "1"]\n[FEN "4k3/8/8/8/8/8/8/4K3 b - - 0 1"]\n\n1... Kd7 *', "black", 1, 1),
+        ("1. e4 e5 2. Nf3 *", "white", 2, 2),
+        ("1. e4 e5 2. Nf3 *", "black", 1, 1),
+    ],
+)
+def test_saved_game_counts_initial_turn(client, db_path, pgn, color, blunders, expected_moves):
+    from app.mcp.tools import Ctx, _games_block
+
+    saved = client.post(
+        "/api/games",
+        json={
+            "pgn": pgn,
+            "player_color": color,
+            "result": "*",
+            "blunders": blunders,
+        },
+    )
+    assert saved.status_code == 201, saved.text
+    data = client.get("/api/progress?tz=0").json()
+    games, week = data["games"], data["weeks"][-1]
+    for stats in (games, week):
+        assert stats["player_moves"] == expected_moves
+        assert stats["analyzed_player_moves"] == expected_moves
+        assert stats["blunders_per_10_moves"] == 10.0
+    db = connect(db_path)
+    try:
+        uid = db.execute("SELECT MIN(id) FROM users").fetchone()[0]
+        mcp, _ = _games_block(Ctx(client.app, db, uid))
+        assert mcp["analyzed_player_moves"] == expected_moves
+        assert mcp["blunders_per_10_moves"] == 10.0
+    finally:
+        db.close()

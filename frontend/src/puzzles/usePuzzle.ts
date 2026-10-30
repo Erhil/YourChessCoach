@@ -59,9 +59,11 @@ export function usePuzzle() {
   const next = phase === 'play' ? p?.solution[k] : undefined
 
   const finish = useCallback(async (id: string, solved: boolean) => {
+    const token = run.current
     storePuzzle(null)
     try {
       const r = await sendAttempt(id, solved, hintsRef.current > 0)
+      if (run.current !== token) return
       setResult(r)
       setRating(Math.round(r.rating_after))
     } catch {
@@ -73,8 +75,8 @@ export function usePuzzle() {
     const t = ++run.current
     try {
       const pz = (keep && loadPuzzle(th, op)) || (await getNextPuzzle(th, op))
-      storePuzzle(pz, th, op)
       if (run.current !== t) return
+      storePuzzle(pz, th, op)
       setP(pz)
       setPhase('opp')
       await sleep(600)
@@ -91,7 +93,8 @@ export function usePuzzle() {
     void load(initialTheme, initialOpening, true)
     getPuzzleThemes().then(setThemes, () => {})
     getPuzzleOpenings().then(setOpenings, () => {})
-    getPuzzleRating().then((r) => setRating(Math.round(r.overall)), () => {})
+    const ratingRun = run.current
+    getPuzzleRating().then((r) => { if (run.current === ratingRun) setRating(Math.round(r.overall)) }, () => {})
     const token = run
     return () => {
       token.current++
@@ -125,9 +128,10 @@ export function usePuzzle() {
       setWrong(uci)
       setPhase('failed')
       void finish(p.id, false)
+      const token = run.current
       coachMove(base.fen(), uci).then(
-        (r) => setCoach(r.explanation ?? { text: NO_EXPLANATION }),
-        () => setCoach({ text: NO_EXPLANATION }),
+        (r) => { if (run.current === token) setCoach(r.explanation ?? { text: NO_EXPLANATION }) },
+        () => { if (run.current === token) setCoach({ text: NO_EXPLANATION }) },
       )
       return true
     }

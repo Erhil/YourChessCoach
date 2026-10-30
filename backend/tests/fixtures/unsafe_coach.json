@@ -1,0 +1,154 @@
+[
+  {
+    "id": "misses_knight_fork",
+    "facts": {
+      "fen_before": "q3k3/8/8/3N4/8/8/PPP4K/3R4 w - - 0 1",
+      "side": "white",
+      "player_move": {
+        "san": "a3",
+        "uci": "a2a3"
+      },
+      "classification": "blunder",
+      "win_chance_drop": 0.903,
+      "eval_before": {
+        "cp": 809,
+        "mate": null
+      },
+      "eval_after": {
+        "cp": 0,
+        "mate": null
+      },
+      "best_move": {
+        "san": "Nc7+",
+        "uci": "d5c7"
+      },
+      "best_line": [
+        "Nc7+",
+        "Kf8",
+        "Nxa8",
+        "Kf7"
+      ],
+      "refutation": [
+        "Qb8+",
+        "Kg2",
+        "Qxb2",
+        "Rd2"
+      ],
+      "material": {
+        "change": -1,
+        "lost": [
+          "P"
+        ],
+        "gained": []
+      },
+      "missed_material": {
+        "change": 9,
+        "lost": [],
+        "gained": [
+          "Q"
+        ]
+      },
+      "motifs_against": [],
+      "motifs_missed": [
+        {
+          "kind": "fork",
+          "by": {
+            "square": "c7",
+            "piece": "N"
+          },
+          "targets": [
+            {
+              "square": "a8",
+              "piece": "q"
+            },
+            {
+              "square": "e8",
+              "piece": "k"
+            }
+          ],
+          "move_san": "Nc7+",
+          "material": null
+        }
+      ],
+      "allowed_mate_in": null,
+      "missed_mate_in": null,
+      "threat": null,
+      "lesson": {
+        "slug": "fork",
+        "title": "Вилка"
+      },
+      "game_over": null
+    },
+    "text": "Вы сделали ход a3, который упустил сильную возможность. Соперник мог ответить Nc7+, что создало вилку ферзя и короля. В следующий раз ищите ходы, которые сразу атакуют две цели."
+  },
+  {
+    "id": "misses_mate_in_1",
+    "facts": {
+      "fen_before": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+      "side": "white",
+      "player_move": {
+        "san": "Kf2",
+        "uci": "g1f2"
+      },
+      "classification": "mistake",
+      "win_chance_drop": 0.283,
+      "eval_before": {
+        "cp": null,
+        "mate": 1
+      },
+      "eval_after": {
+        "cp": 490,
+        "mate": null
+      },
+      "best_move": {
+        "san": "Ra8#",
+        "uci": "a1a8"
+      },
+      "best_line": [
+        "Ra8#"
+      ],
+      "refutation": [
+        "g5",
+        "Ra5",
+        "h6"
+      ],
+      "material": {
+        "change": 0,
+        "lost": [],
+        "gained": []
+      },
+      "missed_material": {
+        "change": 0,
+        "lost": [],
+        "gained": []
+      },
+      "motifs_against": [],
+      "motifs_missed": [
+        {
+          "kind": "back_rank",
+          "by": {
+            "square": "a8",
+            "piece": "R"
+          },
+          "targets": [
+            {
+              "square": "g8",
+              "piece": "k"
+            }
+          ],
+          "move_san": "Ra8#",
+          "material": null
+        }
+      ],
+      "allowed_mate_in": null,
+      "missed_mate_in": 1,
+      "threat": null,
+      "lesson": {
+        "slug": "back-rank-mate",
+        "title": "Мат по последней горизонтали"
+      },
+      "game_over": null
+    },
+    "text": "Вы допустили ошибку, пропустив мат в один ход. Соперник мог поставить ладью на a8, чтобы поставить мат королю. В следующий раз ищите мат на последней горизонтали, если король закрыт пешками."
+  }
+]

@@ -31,12 +31,12 @@ It works offline in your home network, and you can use it from a desktop browser
 
 ## How it works
 
-The chess engine computes, and the language model only explains.
+The chess engine computes. The app renders chess claims from trusted facts and lesson text.
 
 - Stockfish and python-chess compute every chess fact: the evaluation, the best move, the line, a hanging piece, a tactical motif.
-- The app puts these facts into a small JSON object and gives it to a local language model (LLM).
-  The LLM rewrites the facts into two to four plain sentences for a beginner.
-- A validator checks each LLM answer. If the text names a move or a square that is not in the facts, the app rejects it and shows a template text.
+- The app renders a short template explanation from the facts. A local language model (LLM) can select an additional study tip from a fixed list.
+- In lesson questions, the LLM selects one complete passage from the lesson. It cannot add its own chess claims.
+- The validator accepts only known selections. Invalid replies and service failures use the template explanation or report that no lesson answer is available.
 - Every type of fact has a template text. The app works fully without the LLM.
 
 ## Features
@@ -57,6 +57,7 @@ The chess engine computes, and the language model only explains.
 - **Mistakes deck.** Your blunders from games, mistakes from reviews and failed puzzles become cards for spaced repetition.
   The engine checks each answer. A card is learned after three correct answers in a row, and the app shows at most 10 reviews a day.
 - **Profile.** Puzzle rating chart, themes from weak to strong, blunders per 10 moves, an activity calendar, 16 achievements and the settings.
+  The blunder rate uses saved games with a complete analysis. The profile shows how many games it includes.
 - **Model comparison.** A blind test of LLM explanations for the administrator: you see two anonymous texts for one mistake and vote.
   The results table can make a model the default.
 - **Admin page.** The administrator creates users, resets their tokens, sees their progress and can revoke their MCP keys.
@@ -305,8 +306,10 @@ If you change `APP_DATA_DIR` or `ENGINES_DIR`, move the files to the new folder 
 
 ## LLM coach (optional)
 
-The LLM coach turns engine facts into short explanations in plain words. It runs locally through [Ollama](https://ollama.com).
-Without Ollama, the app shows template texts, and all features work.
+The LLM coach selects study advice and lesson passages through local [Ollama](https://ollama.com).
+Chess explanations come from templates built from engine facts. The label “тренер (ИИ)” means the model selected advice or a lesson passage.
+Without Ollama, the core training features use template texts. Free lesson questions are unavailable.
+The model can select a passage that is related to the topic but does not answer the full question.
 
 1. Install Ollama.
    - Windows:
@@ -350,6 +353,7 @@ To choose a model:
    The button is on each row except the current default model.
 
 The app stores this choice in its database. It has priority over `LLM_MODEL`.
+Regenerate comparisons made before the trusted-selection format. Old generated prose is excluded from comparison pairs.
 
 To turn the LLM off, set `LLM_ENABLED=false` in `.env` and restart the app.
 

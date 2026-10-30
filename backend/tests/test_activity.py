@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.auth import service
 from app.config import settings as default_settings
-from app.db import connect
+from app.db import MIGRATIONS, connect
 from app.main import create_app
 
 # Wednesday; its week starts on Monday 2026-10-19.
@@ -201,8 +201,8 @@ def test_activity_needs_login(tmp_path):
         assert c.post("/api/activity/goal", json={"goal": 3}).status_code == 401
 
 
-def test_fresh_database_is_version_12(tmp_path):
+def test_fresh_database_has_all_migrations(tmp_path):
     connect(tmp_path / "fresh.db").close()
     conn = sqlite3.connect(tmp_path / "fresh.db")
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 12
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == len(MIGRATIONS)
     conn.close()

@@ -22,9 +22,9 @@ sys.path.insert(0, str(ROOT / "backend"))
 from app.coach.prompt import build_messages
 from app.coach.schema import CoachFacts
 from app.coach.templates import explain
-from app.coach.validator import to_display, validate
+from app.coach.validator import render_response
 from app.config import settings
-from app.llm.client import LLMError, OllamaClient
+from app.llm.client import LLMError, OllamaClient, use_environment_proxy
 
 MODELS = "qwen3.5:4b,qwen3.5:2b,gemma4:e2b,gemma4:e4b"
 BENCH = ROOT / "backend" / "tests" / "fixtures" / "bench.json"
@@ -44,12 +44,19 @@ def vram_mib() -> int | None:
 
 def unload_all(url: str) -> None:
     try:
-        for m in httpx.get(url + "/api/ps", timeout=5).json().get("models", []):
+        response = httpx.get(url + "/api/ps", timeout=5, trust_env=use_environment_proxy(url))
+        response.raise_for_status()
+        for m in response.json().get("models", []):
             httpx.post(
-                url + "/api/generate", json={"model": m["name"], "keep_alive": 0}, timeout=60
-            )
-    except httpx.HTTPError:
-        pass
+                url + "/api/generate",
+                json={"model": m["name"], "keep_alive": 0},
+                timeout=60,
+                trust_env=use_environment_proxy(url),
+            ).raise_for_status()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise LLMError(
+            "Cannot list or unload Ollama models; check LLM_BASE_URL and Ollama."
+        ) from exc
     time.sleep(3)
 
 
@@ -65,7 +72,9 @@ def measure_vram_gb(url: str, model: str) -> float | None:
         "options": {"num_ctx": 4096, "num_predict": 8},
         "messages": [{"role": "user", "content": "Привет"}],
     }
-    httpx.post(url + "/api/chat", json=body, timeout=300).raise_for_status()
+    httpx.post(
+        url + "/api/chat", json=body, timeout=300, trust_env=use_environment_proxy(url)
+    ).raise_for_status()
     time.sleep(1)
     now = vram_mib()
     return None if base is None or now is None else round((now - base) / 1024, 2)
@@ -88,19 +97,23 @@ def run_model(client: OllamaClient, model: str, items: list[dict]) -> list[dict]
         t0 = time.monotonic()
         try:
             text = client.chat(system, user, model)
-            reasons = validate(text, facts)
+            try:
+                display = render_response(text, facts)
+                reasons = []
+            except ValueError as exc:
+                display, reasons = "", [str(exc)]
         except LLMError as e:
-            text, reasons = "", [f"llm error: {e}"]
+            text, display, reasons = "", "", [f"llm error: {e}"]
         secs = round(time.monotonic() - t0, 2)
         answers.append(
             {
                 "id": item["id"],
                 "text": text,
-                "display_text": to_display(text) if text and not reasons else "",
+                "display_text": display,
                 "seconds": secs,
                 "valid": not reasons,
                 "reasons": reasons,
-                "cyrillic": round(cyrillic_share(text), 3),
+                "cyrillic": round(cyrillic_share(display), 3),
             }
         )
         print(f"  {model} {i}/{len(items)} {secs}s valid={not reasons}", flush=True)

@@ -164,7 +164,12 @@ export default function Play() {
               </div>
             </>
           )}
-          {game.saveError && <p className="muted">Партию не удалось сохранить.</p>}
+          {game.saveError && <p role="alert">Партию не удалось сохранить.</p>}
+          {game.storageError && <p role="alert">Не удалось сохранить партии на устройстве. Не закрывайте страницу до сохранения на сервере.</p>}
+          {game.pendingCount > 0 && <div role="status">
+            <p>Ожидают сохранения: {game.pendingCount}. {!game.storageError && 'Партии сохранены на этом устройстве.'}</p>
+            <button type="button" onClick={game.retrySave}>Повторить сохранение</button>
+          </div>}
           {showEval && <EvalBar fen={game.fen} />}
           <MoveList moves={game.sans} badges={quality} />
           <OpeningName moves={game.uci} />

@@ -5,6 +5,7 @@ import { blunderTrend, comma, deckLeft, lastEarned, ratingChange, signed, topThe
 const now = new Date('2026-10-25T12:00:00Z')
 const pt = (at: string, rating: number) => ({ at, rating })
 const week = (start: string, b: number | null): WeekSummary => ({
+  games: 1, analyzed_games: b === null ? 0 : 1, analyzed_player_moves: b === null ? 0 : 10,
   start, active_days: 1, puzzles_solved: 0, rating_change: 0, player_moves: b === null ? 0 : 10, blunders_per_10_moves: b,
 })
 const theme = (key: string, rating: number, attempts = 3) => ({ key, name: key, rating, attempts })

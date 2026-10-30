@@ -34,6 +34,7 @@ export interface Analysis {
   lines: EvalLine[]
 }
 export interface GameRecord {
+  client_id?: string
   pgn: string
   player_color: 'white' | 'black'
   level: number

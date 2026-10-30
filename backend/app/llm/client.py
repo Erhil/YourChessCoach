@@ -1,7 +1,9 @@
 """Ollama chat client. A missing service is remembered for 30 s so a move never waits for it."""
 
 import time
+from ipaddress import ip_address
 from typing import Protocol
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -16,6 +18,17 @@ class LLMClient(Protocol):
     def chat(self, system: str, user: str, model: str) -> str: ...
 
 
+def use_environment_proxy(base_url: str) -> bool:
+    """Keep remote proxy settings, but connect directly to the local Ollama service."""
+    host = (urlsplit(base_url).hostname or "").rstrip(".").lower()
+    if host == "localhost":
+        return False
+    try:
+        return not ip_address(host).is_loopback
+    except ValueError:
+        return True
+
+
 class OllamaClient:
     def __init__(
         self,
@@ -27,8 +40,11 @@ class OllamaClient:
         self._tags_url = base_url.rstrip("/") + "/api/tags"
         self._checked = (0.0, False)
         self._transport = transport
+        self._trust_env = use_environment_proxy(base_url)
         self._http = httpx.Client(
-            timeout=httpx.Timeout(timeout_s, connect=1.0), transport=transport
+            timeout=httpx.Timeout(timeout_s, connect=1.0),
+            transport=transport,
+            trust_env=self._trust_env,
         )
         self._down_until = 0.0
 
@@ -38,7 +54,9 @@ class OllamaClient:
         if at and time.monotonic() - at < DOWN_FOR_S:
             return ok
         try:
-            with httpx.Client(transport=self._transport, timeout=1.0) as http:
+            with httpx.Client(
+                transport=self._transport, timeout=1.0, trust_env=self._trust_env
+            ) as http:
                 ok = http.get(self._tags_url).is_success
         except httpx.HTTPError:
             ok = False

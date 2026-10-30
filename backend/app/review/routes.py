@@ -105,6 +105,12 @@ def review(body: ReviewRequest, request: Request, db: Db, user_id: UserId) -> di
     summary = {
         k: sum(1 for r in rows if r["color"] == side and r["classification"] == k) for k in BAD
     }
+    if body.game_id is not None:
+        db.execute(
+            "UPDATE games SET blunders = ? WHERE id = ? AND user_id = ?",
+            (summary["blunder"], body.game_id, user_id),
+        )
+        db.commit()
     for r in rows:
         del r["drop"]
     return {"side": side, "moves": rows, "key_moments": moments, "summary": summary}

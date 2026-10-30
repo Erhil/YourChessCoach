@@ -214,6 +214,11 @@ MIGRATIONS: list[str] = [
     """
     ALTER TABLE mistakes ADD COLUMN played_uci TEXT;
     """,
+    # A client retries the same save after an uncertain network response.
+    """
+    ALTER TABLE games ADD COLUMN client_id TEXT;
+    CREATE UNIQUE INDEX games_client_id ON games(user_id, client_id);
+    """,
 ]
 
 # A training game (takebacks or hints): it does not count in wins, losses and game achievements.

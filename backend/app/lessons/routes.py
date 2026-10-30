@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.auth.deps import UserId
-from app.coach.explain import current_model
+from app.coach.explain import TEMPLATE_MODEL, current_model
 from app.db import Db
 from app.lessons import ask
 from app.lessons.loader import is_completed, list_lessons, position_count
@@ -84,6 +84,9 @@ def ask_coach(slug: str, body: AskBody, request: Request, db: Db) -> dict:
     settings, llm = request.app.state.settings, request.app.state.llm
     if not settings.llm_enabled:
         return {"answer": None, "source": None, "reason": ask.UNAVAILABLE}
+    model = current_model(db, settings)
+    if model == TEMPLATE_MODEL:
+        return {"answer": None, "source": None, "reason": ask.UNAVAILABLE}
     context = ask.lesson_context(lesson)
     facts = None
     if body.position is not None:
@@ -92,14 +95,13 @@ def ask_coach(slug: str, body: AskBody, request: Request, db: Db) -> dict:
             b["fen"], b["solution"], ask.best_line(b["fen"], request.app.state.pool)
         )
     try:
-        text = llm.chat(
-            ask.SYSTEM, ask.build_user(body.question, context, facts), current_model(db, settings)
-        )
+        text = llm.chat(ask.SYSTEM, ask.build_user(body.question, context, facts), model)
     except LLMError as exc:
         ask.log.warning("lesson question skipped: %s", exc)
         return {"answer": None, "source": None, "reason": ask.UNAVAILABLE}
-    reasons = ask.check(text, f"{context}\n{facts or ''}")
-    if reasons:
-        ask.log.warning("lesson answer rejected: %s", "; ".join(reasons))
+    try:
+        text = ask.render_response(text, context)
+    except ValueError as exc:
+        ask.log.warning("lesson answer rejected: %s", exc)
         return {"answer": None, "source": None, "reason": ask.INEXACT}
     return {"answer": text, "source": "llm", "reason": None}

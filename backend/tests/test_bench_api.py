@@ -1,4 +1,5 @@
 import base64
+import copy
 import json
 import shutil
 
@@ -6,9 +7,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.coach.explain import current_model
+from app.coach.templates import explain
 from app.config import settings
 from app.db import connect
 from app.main import app
+from tests.test_validator import facts
 
 BENCH_DIR = settings.app_data_dir / "bench"
 
@@ -16,7 +19,7 @@ BENCH_DIR = settings.app_data_dir / "bench"
 def _answer(item_id, valid=True, seconds=1.0):
     return {
         "id": item_id,
-        "text": item_id,
+        "text": '{"tip":"none"}',
         "display_text": f"text {item_id}",
         "seconds": seconds,
         "valid": valid,
@@ -31,11 +34,10 @@ def _item(item_id):
         "kind": "k",
         "fen": "8/8/8/8/8/8/8/K6k w - - 0 1",
         "move_uci": "a1a2",
-        "facts": {
-            "player_move": {"san": "Ka2", "uci": "a1a2"},
-            "classification": "mistake",
-            "best_move": {"san": "Kb1", "uci": "a1b1"},
-        },
+        "facts": facts(
+            player_move={"san": "Ka2", "uci": "a1a2"},
+            best_move={"san": "Kb1", "uci": "a1b1"},
+        ).model_dump(),
     }
 
 
@@ -83,8 +85,14 @@ def test_pair_hides_model_names(client):
     assert body["item_id"] == "i1"  # i2 has no two valid answers
     assert body["move_san"] == "Ka2"
     assert body["best_move_san"] == "Kb1"
-    assert body["classification"] == "mistake"
-    assert {body["a"]["text"], body["b"]["text"]} == {"text i1"}
+    assert body["classification"] == "blunder"
+    assert {body["a"]["text"], body["b"]["text"]} == {
+        explain(
+            facts(
+                player_move={"san": "Ka2", "uci": "a1a2"}, best_move={"san": "Kb1", "uci": "a1b1"}
+            )
+        )
+    }
     assert set(body["a"]) == {"text"}
     assert "m1" not in json.dumps({k: v for k, v in body.items() if k != "token"})
 
@@ -138,3 +146,13 @@ def test_default_model(client):
     assert client.get("/api/admin/bench/results").json()["default_model"] == "template"
     assert client.post("/api/admin/bench/default", json={"model": "m1"}).status_code == 200
     assert client.get("/api/admin/bench/results").json()["default_model"] == "m1"
+
+
+def test_saved_prose_is_not_served_even_when_marked_valid(client):
+    data = copy.deepcopy(BENCH)
+    for result in data["results"].values():
+        for answer in result["answers"]:
+            answer.update(text="После Qh4 вы выигрываете ферзя.", valid=True)
+    _write(data)
+    # The template is the only safe model; it cannot form a comparison pair alone.
+    assert client.get("/api/admin/bench/pair").status_code == 404

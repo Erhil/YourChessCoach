@@ -1,13 +1,21 @@
 import dataclasses
+import hashlib
+import json
 import logging
+import re
+from pathlib import Path
 
 import pytest
 
 from app.coach.explain import explain_facts
+from app.coach.schema import CoachFacts
+from app.coach.templates import explain
 from app.config import settings as base_settings
 from app.db import connect, migrate
 from tests.fakes import FakeLLM
-from tests.test_validator import GOOD, facts
+from tests.test_validator import facts
+
+GOOD = '{"tip":"repeat"}'
 
 ON = dataclasses.replace(base_settings, llm_enabled=True)
 
@@ -77,12 +85,66 @@ def test_another_best_move_or_reply_is_not_a_cache_hit(db):
     assert len(llm.calls) == 3
 
 
-def test_hit_with_text_invalid_for_new_facts_is_recomputed(db):
+def test_all_facts_invalidate_cache(db):
     llm = FakeLLM(GOOD)
     explain_facts(facts(), db, llm, ON)
-    gone = {"change": 0, "lost": [], "gained": []}
-    other = facts(motifs_against=[], material=gone)  # same best move and reply: the same cache key
-    out = explain_facts(other, db, llm, ON)
+    out = explain_facts(facts(missed_mate_in=1), db, llm, ON)
     assert len(llm.calls) == 2
-    assert out["source"] == "template"
-    assert db.execute("SELECT COUNT(*) FROM llm_cache").fetchone()[0] == 0
+    assert out["text"].startswith(explain(facts(missed_mate_in=1)))
+
+
+@pytest.mark.parametrize(
+    "sample",
+    json.loads(
+        (Path(__file__).parent / "fixtures" / "unsafe_coach.json").read_text(encoding="utf-8")
+    ),
+    ids=lambda sample: sample["id"],
+)
+def test_saved_role_contradictions_fall_back(db, sample):
+    f = CoachFacts.model_validate(sample["facts"])
+    out = explain_facts(f, db, FakeLLM(sample["text"]), ON)
+    assert out == {"text": explain(f), "source": "template", "model": None}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "После Qh4 вы выигрываете ферзя.",
+        '{"tip":"repeat","text":"После Qh4 вы выигрываете ферзя."}',
+        '{"tip":"Вы ставите мат в один ход."}',
+    ],
+)
+def test_material_and_mate_claims_cannot_reach_user(db, text):
+    out = explain_facts(facts(), db, FakeLLM(text), ON)
+    assert out == {"text": explain(facts()), "source": "template", "model": None}
+
+
+def test_legacy_and_poisoned_cache_cannot_return_prose(db):
+    f = facts()
+    unsafe = "После Qh4 вы выигрываете ферзя."
+    legacy = (
+        f"{f.fen_before}\n{f.player_move.uci}\n{ON.llm_model}\n{f.best_move.uci}\n{f.refutation[0]}"
+    )
+    db.execute(
+        "INSERT INTO llm_cache VALUES (?, ?, ?, 'old')",
+        (hashlib.sha256(legacy.encode()).hexdigest(), ON.llm_model, unsafe),
+    )
+    llm = FakeLLM(GOOD)
+    out = explain_facts(f, db, llm, ON)
+    assert out["source"] == "llm" and unsafe not in out["text"] and len(llm.calls) == 1
+    db.execute("UPDATE llm_cache SET text = ?", (unsafe,))
+    llm.text = unsafe
+    out = explain_facts(f, db, llm, ON)
+    assert out == {"text": explain(f), "source": "template", "model": None}
+
+
+def test_safe_selection_renders_trusted_advice_with_sentence_bound(db):
+    short = facts(best_move=None)
+    out = explain_facts(short, db, FakeLLM(GOOD), ON)
+    assert out["text"].startswith(explain(short))
+    assert "повторите проверку" in out["text"]
+    four = facts()
+    core = explain(four)
+    # Four trusted sentences already fill the display budget.
+    assert len(re.split(r"[.!?]+(?:\s|$)", core.strip())) - 1 == 4
+    assert explain_facts(four, db, FakeLLM(GOOD), ON)["text"] == core

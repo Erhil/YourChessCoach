@@ -33,7 +33,8 @@ test.describe('own user', () => {
     await expect(rating.getByTestId('change')).toHaveText(`${signed(p.puzzles.rating - START_RATING)} с первой задачи`)
     await expect(rating.getByRole('img')).toHaveAttribute('aria-label', new RegExp(`сейчас ${p.puzzles.rating}$`))
     await expect(tile('Неделя')).toContainText(`1 из ${goal} дней`)
-    await expect(tile('Зевки на 10 ходов')).toContainText('Сыграйте партию, чтобы увидеть')
+    await expect(tile('Зевки на 10 ходов')).toContainText('—')
+    await expect(tile('Зевки на 10 ходов')).toContainText('Сохраните и разберите партию, чтобы увидеть')
     await expect(tile('Партии')).toContainText('0 побед · 0 ничьих · 0 поражений')
     await expect(tile('Партии')).not.toContainText('тренировочных')
     // The random puzzle can have no theme of the offered list: then the tile says so.

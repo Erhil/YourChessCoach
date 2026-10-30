@@ -1,12 +1,15 @@
+import io
 import sqlite3
 from datetime import date, timedelta
 from pathlib import Path
 
+import chess.pgn
 from fastapi import APIRouter, Request
 
 from app.activity.days import Tz, event_counts, local_today, server_tz, shift
 from app.auth.deps import UserId
 from app.db import TRAINING_GAME, Db
+from app.games.routes import player_move_count
 from app.lessons.loader import is_completed, list_lessons
 from app.mistakes.srs import now_utc
 from app.puzzles.rating import START_RATING
@@ -18,8 +21,6 @@ HISTORY_LIMIT = 200
 WEAK_MIN_ATTEMPTS = 3
 CALENDAR_WEEKS = 12
 SUMMARY_WEEKS = 8
-# Blunder cards from games and play: the base of `blunders_per_10_moves`.
-BLUNDERS_WHERE = "user_id = ? AND source IN ('game', 'play') AND classification = 'blunder'"
 
 
 @router.get("")
@@ -30,12 +31,26 @@ def progress(request: Request, db: Db, user_id: UserId, tz: int | None = Tz) -> 
 
 
 def own_moves(game: sqlite3.Row) -> int:
-    white = game["player_color"] == "white"
-    return (game["moves_count"] + 1) // 2 if white else game["moves_count"] // 2
+    headers = chess.pgn.read_headers(io.StringIO(game["pgn"]))
+    initial_turn = headers.board().turn if headers is not None else chess.WHITE
+    return player_move_count(game["moves_count"], game["player_color"], initial_turn)
 
 
 def per_10(blunders: int, moves: int) -> float | None:
     return round(10 * blunders / moves, 2) if moves else None
+
+
+def blunder_stats(games) -> dict:
+    """Use only saved games with a complete count for both sides of the rate."""
+    analyzed = [g for g in games if g["blunders"] is not None]
+    moves = sum(map(own_moves, analyzed))
+    blunders = sum(g["blunders"] for g in analyzed)
+    return {
+        "analyzed_games": len(analyzed),
+        "analyzed_player_moves": moves,
+        "blunders": blunders,
+        "blunders_per_10_moves": per_10(blunders, moves),
+    }
 
 
 def build_weeks(db: sqlite3.Connection, user_id: int, tz: int, today: date) -> dict:
@@ -57,8 +72,7 @@ def build_weeks(db: sqlite3.Connection, user_id: int, tz: int, today: date) -> d
         return rows
 
     attempts = by_week("puzzle_attempts", "user_id = ?", "solved, rating_before, rating_after")
-    games = by_week("games", "user_id = ?", "player_color, moves_count")
-    blunders = by_week("mistakes", BLUNDERS_WHERE, "id")
+    games = by_week("games", "user_id = ?", "player_color, moves_count, blunders, pgn")
     weeks = []
     for start in starts:
         tries, moves = attempts.get(start, []), sum(map(own_moves, games.get(start, [])))
@@ -71,7 +85,8 @@ def build_weeks(db: sqlite3.Connection, user_id: int, tz: int, today: date) -> d
                 if tries
                 else 0,
                 "player_moves": moves,
-                "blunders_per_10_moves": per_10(len(blunders.get(start, [])), moves),
+                "games": len(games.get(start, [])),
+                **blunder_stats(games.get(start, [])),
             }
         )
     return {"calendar": [d.isoformat() for d in active], "weeks": weeks}
@@ -105,7 +120,7 @@ def build_progress(db: sqlite3.Connection, lessons_dir: Path, user_id: int) -> d
 
     wins = losses = draws = player_moves = training = 0
     games = db.execute(
-        f"SELECT player_color, result, moves_count, {TRAINING_GAME} AS training FROM games"
+        f"SELECT player_color, result, moves_count, blunders, pgn, {TRAINING_GAME} AS training FROM games"
         " WHERE user_id = ?",
         (user_id,),
     ).fetchall()
@@ -123,7 +138,6 @@ def build_progress(db: sqlite3.Connection, lessons_dir: Path, user_id: int) -> d
         else:
             wins += (g["result"] == "1-0") == white
             losses += (g["result"] == "1-0") != white
-    blunders = scalar(f"SELECT COUNT(*) FROM mistakes WHERE {BLUNDERS_WHERE}")
 
     solved = {
         r["slug"]: r["n"]
@@ -156,8 +170,7 @@ def build_progress(db: sqlite3.Connection, lessons_dir: Path, user_id: int) -> d
             "draws": draws,
             "training": training,
             "player_moves": player_moves,
-            "blunders": blunders,
-            "blunders_per_10_moves": per_10(blunders, player_moves) or 0.0,
+            **blunder_stats(games),
         },
         "lessons": {"completed": completed, "total": len(lessons)},
         "mistakes": {

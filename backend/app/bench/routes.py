@@ -10,6 +10,9 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.coach.explain import current_model
+from app.coach.schema import CoachFacts
+from app.coach.templates import explain
+from app.coach.validator import render_response
 from app.db import Db
 
 router = APIRouter(prefix="/api/admin/bench")
@@ -21,7 +24,19 @@ def load_bench(request: Request) -> dict:
     files = sorted((request.app.state.settings.app_data_dir / "bench").glob("*.json"))
     if not files:
         raise HTTPException(404, NO_RESULTS)
-    return json.loads(files[-1].read_text(encoding="utf-8"))
+    bench = json.loads(files[-1].read_text(encoding="utf-8"))
+    facts = {i["id"]: CoachFacts.model_validate(i["facts"]) for i in bench["items"]}
+    for model, result in bench["results"].items():
+        for answer in result["answers"]:
+            try:
+                f = facts[answer["id"]]
+                answer["display_text"] = (
+                    explain(f) if model == "template" else render_response(answer["text"], f)
+                )
+            except (ValueError, KeyError):
+                answer["valid"] = False
+                answer["display_text"] = ""
+    return bench
 
 
 def _answer(bench: dict, model: str, item_id: str) -> dict | None:

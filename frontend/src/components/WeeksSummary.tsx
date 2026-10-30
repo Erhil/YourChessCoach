@@ -26,6 +26,7 @@ export default function WeeksSummary({ weeks: all }: { weeks: WeekSummary[] }) {
             <span>задач решено: {w.puzzles_solved}</span>
             <span>рейтинг: {signed(w.rating_change)}</span>
             <span>зевки на 10 ходов: {per10(w.blunders_per_10_moves)}</span>
+            {w.games > 0 && <span>учтено партий: {w.analyzed_games} из {w.games}</span>}
           </li>
         ))}
       </ul>

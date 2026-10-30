@@ -1,15 +1,18 @@
 import { Chess } from 'chess.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { coachMove, getOpponentMove, saveGame } from '../api/client'
+import { coachMove, getOpponentMove, saveGame, type GameRecord } from '../api/client'
 import type { Move } from '../components/Board'
 import { sleep, toUci } from './notation'
 import { readHelp } from './coachSettings'
 import { gameStatus, type GameStatus } from './game'
-import { loadGame, storeGame } from './gameStore'
+import { loadGame, storeGame, pendingKey, loadPending, storePending, removePending } from './gameStore'
 import { useCoach, type Verdict } from './useCoach'
 
 type Color = 'white' | 'black'
-export type Game = { id: number; color: Color; level: number; sans: string[]; hints?: number; takebacks?: number }
+export type Game = { clientId?: string; id: number; color: Color; level: number; sans: string[]; hints?: number; takebacks?: number }
+
+// getRandomValues also works on the server's plain HTTP LAN address.
+const newClientId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (n) => n.toString(16).padStart(2, '0')).join('')
 
 const ask = (fen: string, uci: string): Promise<Verdict> => coachMove(fen, uci).catch(() => null)
 
@@ -24,7 +27,8 @@ function restore(): Game | null {
   const stored = loadGame()
   if (!stored) return null
   try {
-    return gameStatus(replay(stored.sans)).over ? null : stored
+    replay(stored.sans)
+    return { ...stored, clientId: stored.clientId ?? newClientId() }
   } catch {
     return null
   }
@@ -65,6 +69,58 @@ export function useGame() {
   const [savedGameId, setSavedGameId] = useState<number | null>(null)
   const [oppError, setOppError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState(false)
+  const [queueKey] = useState(pendingKey)
+  const [storageError, setStorageError] = useState(false)
+  const [pending, setPending] = useState<GameRecord[]>(() => {
+    try { return loadPending(queueKey) } catch { return [] }
+  })
+  // Keep failed disk writes available for retry during this visit.
+  const unsaved = useRef(new Map<string, GameRecord>())
+  const sending = useRef(new Set<string>())
+  const currentClient = useRef(g?.clientId)
+  useEffect(() => { currentClient.current = g?.clientId }, [g?.clientId])
+  const refreshPending = useCallback(() => {
+    try {
+      const disk = loadPending(queueKey)
+      setPending([...disk, ...Array.from(unsaved.current.values()).filter((item) => !disk.some((g) => g.client_id === item.client_id))])
+    } catch {
+      setStorageError(true)
+      setPending(Array.from(unsaved.current.values()))
+    }
+  }, [queueKey])
+  useEffect(() => {
+    window.addEventListener('storage', refreshPending)
+    window.addEventListener('pending-games', refreshPending)
+    return () => {
+      window.removeEventListener('storage', refreshPending)
+      window.removeEventListener('pending-games', refreshPending)
+    }
+  }, [refreshPending])
+  const submit = useCallback((payload: GameRecord) => {
+    const id = payload.client_id!
+    if (sending.current.has(id)) return
+    // Persist before sending. If storage fails, report that reload recovery is unavailable.
+    try {
+      storePending(queueKey, payload)
+      unsaved.current.delete(id)
+      setStorageError(unsaved.current.size > 0)
+    } catch {
+      unsaved.current.set(id, payload)
+      setStorageError(true)
+    }
+    refreshPending()
+    sending.current.add(id)
+    void saveGame(payload).then((r) => {
+      unsaved.current.delete(id)
+      try { removePending(queueKey, id) } catch { setStorageError(true) }
+      refreshPending()
+      if (currentClient.current === id) setSavedGameId(r.id)
+    }, () => setSaveError(true)).finally(() => sending.current.delete(id))
+  }, [queueKey, refreshPending])
+  const retrySave = () => {
+    setSaveError(false)
+    pending.forEach(submit)
+  }
   const nextId = useRef((g?.id ?? 0) + 1)
   const savedId = useRef(0)
   const coach = useCoach()
@@ -91,16 +147,14 @@ export function useGame() {
   const thinking = active && !playerTurn && oppError !== oppKey
 
   const { verdicts } = coach
-  const save = useCallback((game: Game, result: string, termination: string, remember = false) => {
+  const save = useCallback((game: Game, result: string, termination: string) => {
     const blunders = countBlunders(game, verdicts, termination)
     // The server accepts at most 600 of each.
     const takebacks = Math.min(game.takebacks ?? 0, 600)
     const hints = Math.min(game.hints ?? 0, 600)
-    saveGame({ pgn: pgnOf(game, result), player_color: game.color, level: game.level, result, termination, blunders, takebacks, hints }).then(
-      (r) => remember && setSavedGameId(r.id),
-      () => setSaveError(true),
-    )
-  }, [verdicts])
+    const payload: GameRecord = { client_id: game.clientId, pgn: pgnOf(game, result), player_color: game.color, level: game.level, result, termination, blunders, takebacks, hints }
+    submit(payload)
+  }, [verdicts, submit])
 
   // Keep the running game for the next visit.
   useEffect(() => {
@@ -129,7 +183,7 @@ export function useGame() {
   useEffect(() => {
     if (g && status.over && savedId.current !== g.id) {
       savedId.current = g.id
-      save(g, status.result, status.termination, true)
+      save(g, status.result, status.termination)
     }
   }, [g, status, save])
 
@@ -147,7 +201,7 @@ export function useGame() {
     setResigned(false)
     setSavedGameId(null)
     dropCoach()
-    setG({ id: nextId.current++, color, level, sans: [] })
+    setG({ clientId: newClientId(), id: nextId.current++, color, level, sans: [] })
   }
 
   /** Back to the setup card. A running game with moves is saved as unfinished. */
@@ -228,7 +282,7 @@ export function useGame() {
 
   return {
     g, fen, sans, uci, status, active, thinking, canMove, canUndo, oppFailed: active && !playerTurn && !thinking,
-    saveError, savedGameId, checking, warn, warnThink, warnGo, advice: coach.advice, verdicts: coach.verdicts, proceed: coach.proceed,
+    saveError, storageError, pendingCount: pending.length, retrySave, savedGameId, checking, warn, warnThink, warnGo, advice: coach.advice, verdicts: coach.verdicts, proceed: coach.proceed,
     lastMove: last ? { from: last.from, to: last.to } : null, start, leave, resign, move, undo, markHint,
   }
 }
