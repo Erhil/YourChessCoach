@@ -35,6 +35,7 @@ export interface Analysis {
   lines: EvalLine[]
 }
 export interface GameRecord {
+  expected_login?: string
   client_id?: string
   pgn: string
   player_color: 'white' | 'black'
@@ -103,7 +104,7 @@ export interface CoachResult {
   }
   explanation: { text: string; source: string } | null
 }
-export const coachMove = (fen: string, move: string) => call<CoachResult>('/api/coach/move', { fen, move })
+export const coachMove = (fen: string, move: string, help_level?: number) => call<CoachResult>('/api/coach/move', { fen, move, help_level })
 
 export interface LessonSummary {
   slug: string

@@ -9,6 +9,7 @@ from app.coach.explain import explain_facts
 from app.coach.facts import build_facts
 from app.coach.hint import build_hint
 from app.coach.schema import CoachFacts
+from app.coach.templates import explain
 from app.db import Db
 from app.engines.pool import EngineUnavailableError
 from app.security import ENGINE_HEAVY
@@ -19,6 +20,7 @@ router = APIRouter()
 class CoachMoveRequest(BaseModel):
     fen: str = Field(max_length=100)
     move: str = Field(max_length=10)
+    help_level: int | None = Field(default=None, ge=1, le=5)
     _board: chess.Board = PrivateAttr()
     _move: chess.Move = PrivateAttr()
 
@@ -85,7 +87,19 @@ def coach_hint(body: HintRequest, request: Request) -> dict:
 def coach_move(body: CoachMoveRequest, request: Request, db: Db) -> dict:
     facts = _facts(body, request)
     state = request.app.state
-    return {"facts": facts, "explanation": explain_facts(facts, db, state.llm, state.settings)}
+    level = body.help_level
+    visible = (
+        level is None
+        or level == 5
+        or (level >= 2 and facts.classification == "blunder")
+        or (level >= 3 and facts.classification == "mistake")
+    )
+    return {
+        "facts": facts,
+        "explanation": explain_facts(facts, db, state.llm, state.settings)
+        if visible
+        else {"text": explain(facts), "source": "template", "model": None},
+    }
 
 
 @router.post("/api/coach/ask", dependencies=ENGINE_HEAVY)

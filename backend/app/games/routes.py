@@ -14,6 +14,7 @@ MAX_PLIES = 600
 
 
 class GameIn(BaseModel):
+    expected_login: str | None = Field(default=None, max_length=100)
     client_id: str | None = Field(None, min_length=1, max_length=100)
     pgn: str = Field(max_length=20000)
     player_color: Literal["white", "black"]
@@ -45,6 +46,12 @@ def player_move_count(plies: int, player_color: str, initial_turn: chess.Color) 
 
 @router.post("", status_code=201)
 def create_game(body: GameIn, db: Db, user_id: UserId) -> dict:
+    if body.expected_login is not None:
+        owner = db.execute("SELECT login FROM users WHERE id = ?", (user_id,)).fetchone()
+        if owner["login"] != body.expected_login:
+            raise HTTPException(
+                409, "Профиль изменился. Войдите в исходный профиль для сохранения."
+            )
     game = chess.pgn.read_game(io.StringIO(body.pgn))
     if game is None or game.errors:
         raise HTTPException(422, "PGN does not parse")

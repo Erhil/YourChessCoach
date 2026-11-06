@@ -1,6 +1,7 @@
 import { Chess } from 'chess.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { coachMove, getOpponentMove, saveGame, type GameRecord } from '../api/client'
+import { sessionLogin } from '../auth/session'
 import type { Move } from '../components/Board'
 import { sleep, toUci } from './notation'
 import { readHelp } from './coachSettings'
@@ -14,7 +15,7 @@ export type Game = { clientId?: string; id: number; color: Color; level: number;
 // getRandomValues also works on the server's plain HTTP LAN address.
 const newClientId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (n) => n.toString(16).padStart(2, '0')).join('')
 
-const ask = (fen: string, uci: string): Promise<Verdict> => coachMove(fen, uci).catch(() => null)
+const ask = (fen: string, uci: string): Promise<Verdict> => coachMove(fen, uci, readHelp()).catch(() => null)
 
 function replay(sans: string[]): Chess {
   const chess = new Chess()
@@ -70,6 +71,7 @@ export function useGame() {
   const [oppError, setOppError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState(false)
   const [queueKey] = useState(pendingKey)
+  const [login] = useState(sessionLogin)
   const [storageError, setStorageError] = useState(false)
   const [pending, setPending] = useState<GameRecord[]>(() => {
     try { return loadPending(queueKey) } catch { return [] }
@@ -77,6 +79,7 @@ export function useGame() {
   // Keep failed disk writes available for retry during this visit.
   const unsaved = useRef(new Map<string, GameRecord>())
   const sending = useRef(new Set<string>())
+  const finalizing = useRef(new Set<string>())
   const currentClient = useRef(g?.clientId)
   useEffect(() => { currentClient.current = g?.clientId }, [g?.clientId])
   const refreshPending = useCallback(() => {
@@ -109,6 +112,7 @@ export function useGame() {
       setStorageError(true)
     }
     refreshPending()
+    if (pendingKey() !== queueKey) return
     sending.current.add(id)
     void saveGame(payload).then((r) => {
       unsaved.current.delete(id)
@@ -119,12 +123,12 @@ export function useGame() {
   }, [queueKey, refreshPending])
   const retrySave = () => {
     setSaveError(false)
-    pending.forEach(submit)
+    pending.filter((item) => !finalizing.current.has(item.client_id!)).forEach(submit)
   }
   const nextId = useRef((g?.id ?? 0) + 1)
   const savedId = useRef(0)
   const coach = useCoach()
-  const { wait: coachWait } = coach
+  const { wait: coachWait, finish: finishCoach } = coach
   const epoch = useRef(0) // grows on a new game and on undo: drops a pending coach check
   const [checking, setChecking] = useState(false)
   const [warn, setWarn] = useState<{ m: Move; v: Verdict } | null>(null)
@@ -152,9 +156,19 @@ export function useGame() {
     // The server accepts at most 600 of each.
     const takebacks = Math.min(game.takebacks ?? 0, 600)
     const hints = Math.min(game.hints ?? 0, 600)
-    const payload: GameRecord = { client_id: game.clientId, pgn: pgnOf(game, result), player_color: game.color, level: game.level, result, termination, blunders, takebacks, hints }
-    submit(payload)
-  }, [verdicts, submit])
+    const payload: GameRecord = { expected_login: login, client_id: game.clientId, pgn: pgnOf(game, result), player_color: game.color, level: game.level, result, termination, blunders, takebacks, hints }
+    // Queue immediately for reload recovery; submit after the engine facts settle.
+    finalizing.current.add(game.clientId!)
+    try { storePending(queueKey, payload) } catch {
+      unsaved.current.set(game.clientId!, payload)
+      setStorageError(true)
+    }
+    refreshPending()
+    void finishCoach(game.id).then((facts) => {
+      finalizing.current.delete(game.clientId!)
+      submit({ ...payload, blunders: countBlunders(game, facts, termination) })
+    })
+  }, [verdicts, submit, finishCoach, queueKey, refreshPending, login])
 
   // Keep the running game for the next visit.
   useEffect(() => {
@@ -277,6 +291,7 @@ export function useGame() {
     if (!g || !canUndo) return
     setOppError(null)
     dropCoach()
+    coach.discard(g.id, sans.length - (playerTurn ? 2 : 1))
     setG({ ...g, sans: sans.slice(0, sans.length - (playerTurn ? 2 : 1)), takebacks: (g.takebacks ?? 0) + 1 })
   }
 

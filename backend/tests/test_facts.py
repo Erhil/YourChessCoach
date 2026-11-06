@@ -372,3 +372,32 @@ def test_material_is_not_claimed_when_the_pv_ends_after_a_capture():
     b = chess.Board()
     mat = settled_material(b, ["e2e4", "d7d5", "e4d5"], chess.WHITE)
     assert (mat.change, mat.lost, mat.gained) == (0, [], [])
+
+
+@pytest.mark.engine
+@pytest.mark.parametrize("level", [1, 2, 3])
+def test_hidden_explanation_keeps_facts_without_calling_llm(tmp_path, level):
+    from dataclasses import replace
+
+    class SpyLLM:
+        calls = 0
+
+        def chat(self, *args, **kwargs):
+            self.calls += 1
+            raise AssertionError("hidden prose must not be generated")
+
+    app = create_app(replace(settings, app_db_path=tmp_path / "hidden.db", llm_enabled=True))
+    with TestClient(app) as client:
+        spy = SpyLLM()
+        app.state.llm = spy
+        case = CASES[0] if level == 1 else {"fen": chess.STARTING_FEN, "move": "e2e4"}
+        response = client.post(
+            "/api/coach/move", json={"fen": case["fen"], "move": case["move"], "help_level": level}
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["facts"]["classification"] in (("blunder",) if level == 1 else ("best", "good"))
+        assert body["facts"]["best_move"]
+        assert body["explanation"]["source"] == "template"
+        assert body["explanation"]["text"]
+        assert spy.calls == 0

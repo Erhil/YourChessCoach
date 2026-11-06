@@ -38,5 +38,5 @@ export interface NextMistake {
 export const getNextMistake = () => call<NextMistake>(`/api/mistakes/next?tz=${tz()}`)
 export const getMistakeStats = () => call<MistakeStats>('/api/mistakes/stats')
 export const answerMistake = signalled((id: number, uci: string, review_version: number) => call<MistakeAnswer>(`/api/mistakes/${id}/answer?tz=${tz()}`, { uci, review_version }))
-export const addPlayMistake = (card: { fen: string; best_uci: string; played_uci: string; classification: string; motif?: string }) =>
+export const addPlayMistake = (card: { expected_login?: string; fen: string; best_uci: string; played_uci: string; classification: string; motif?: string }) =>
   call<{ id: number; created: boolean }>('/api/mistakes', { source: 'play', ...card })

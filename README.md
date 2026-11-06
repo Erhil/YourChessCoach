@@ -48,6 +48,8 @@ The chess engine computes. The app renders chess claims from trusted facts and l
 - **Play.** You play against a human-like opponent: Maia neural networks through lc0, levels 800 to 1900.
   Level 800 is Maia 1100 that plays a random move in a quarter of its moves.
   The coach help has five levels, from "1. Без подсказок" (no hints) to "5. Разбор каждого хода" (explain every move).
+  With no hints, the opponent replies independently of coach checks. Hidden comments do not call the LLM;
+  move facts and game statistics are retained. Visible explanations and selected warnings can still require a wait.
   A game with takebacks or coach hints is saved as a training game: its result does not count in wins and losses.
 - **Puzzles.** About 350,000 puzzles from the Lichess puzzle database, from rating 400 to 2400.
   You get an Elo rating, overall and for each theme. After a wrong move, the coach explains it and shows the solution.

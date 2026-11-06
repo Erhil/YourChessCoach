@@ -1,6 +1,7 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CoachResult } from '../api/client'
 import { addPlayMistake } from '../api/mistakes'
+import { sessionLogin } from '../auth/session'
 import { readHelp } from './coachSettings'
 import { CLASS_WORD } from './notation'
 
@@ -28,10 +29,20 @@ export function useCoach() {
   const [advice, setAdvice] = useState<Advice | null>(null)
   const [verdicts, setVerdicts] = useState<Record<string, string>>({})
   const gate = useRef<Gate | null>(null)
+  const [login] = useState(sessionLogin)
+  const results = useRef<Record<string, string>>({})
+  const pending = useRef(new Map<string, Promise<void>>())
+  const tokens = useRef(new Map<string, object>())
 
   const reset = useCallback(() => {
+    gate.current?.release()
     gate.current = null
     setAdvice(null)
+  }, [])
+
+  useEffect(() => () => {
+    gate.current?.release()
+    gate.current = null
   }, [])
 
   const begin = useCallback((id: number, len: number, verdict: Promise<Verdict>, before: string, uci: string, after: string) => {
@@ -40,17 +51,24 @@ export function useCoach() {
     gate.current = me
     setAdvice(null)
     const key = `${id}:${len - 1}`
-    setVerdicts((p) => Object.fromEntries(Object.entries(p).filter(([k]) => k !== key)))
-    void verdict.then((v) => {
-      if (gate.current !== me) return
-      if (v) setVerdicts((p) => ({ ...p, [key]: v.facts.classification }))
+    delete results.current[key]
+    setVerdicts({ ...results.current })
+    const token = {}
+    tokens.current.set(key, token)
+    const task = verdict.then((v) => {
+      if (tokens.current.get(key) !== token) return
+      if (v) {
+        results.current[key] = v.facts.classification
+        setVerdicts({ ...results.current })
+      }
       const bad = v?.facts.classification === 'mistake' || v?.facts.classification === 'blunder'
       const blunder = v?.facts.classification === 'blunder'
       const best = v?.facts.best_move
-      if (v && bad && best) {
+      if (v && bad && best && sessionLogin() === login) {
         const motif = v.facts.motifs_against?.[0]?.kind ?? v.facts.motifs_missed?.[0]?.kind
-        addPlayMistake({ fen: before, best_uci: best.uci, played_uci: uci, classification: v.facts.classification, motif }).catch(() => {})
+        addPlayMistake({ expected_login: login, fen: before, best_uci: best.uci, played_uci: uci, classification: v.facts.classification, motif }).catch(() => {})
       }
+      if (gate.current !== me) return
       const level = readHelp()
       const cls = v?.facts.classification
       const shows = level >= 5 || (level >= 3 ? bad : level === 2 && cls === 'blunder')
@@ -59,7 +77,25 @@ export function useCoach() {
         setAdvice({ text, source: v.explanation?.source ?? '', lesson: v.facts.lesson, hold: blunder, facts: v.facts, before, uci, after })
         if (!blunder) release()
       } else release()
-    })
+    }).finally(() => { if (pending.current.get(key) === task) pending.current.delete(key) })
+    pending.current.set(key, task)
+    if (readHelp() === 1) release()
+  }, [login])
+
+  const discard = useCallback((id: number, from: number) => {
+    for (const key of tokens.current.keys()) {
+      if (key.startsWith(`${id}:`) && Number(key.split(':')[1]) >= from) {
+        tokens.current.delete(key)
+        pending.current.delete(key)
+        delete results.current[key]
+      }
+    }
+    setVerdicts({ ...results.current })
+  }, [])
+
+  const finish = useCallback(async (id: number) => {
+    await Promise.all([...pending.current].filter(([key]) => key.startsWith(`${id}:`)).map(([, task]) => task))
+    return { ...results.current }
   }, [])
 
   const wait = useCallback((id: number, len: number) => {
@@ -72,5 +108,5 @@ export function useCoach() {
     gate.current?.release()
   }, [])
 
-  return { advice, verdicts, begin, wait, proceed, reset }
+  return { advice, verdicts, begin, wait, proceed, reset, discard, finish }
 }

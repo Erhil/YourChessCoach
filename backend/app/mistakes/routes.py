@@ -72,6 +72,7 @@ def _board(fen: str, uci: str) -> tuple[chess.Board, chess.Move]:
 
 
 class PlayCard(BaseModel):
+    expected_login: str | None = Field(default=None, max_length=100)
     source: Literal["play"]
     fen: str = Field(max_length=100)
     best_uci: str = Field(max_length=10)
@@ -87,6 +88,12 @@ class Answer(BaseModel):
 
 @router.post("")
 def create(body: PlayCard, db: Db, user_id: UserId) -> dict:
+    if body.expected_login is not None:
+        owner = db.execute("SELECT login FROM users WHERE id = ?", (user_id,)).fetchone()
+        if owner["login"] != body.expected_login:
+            raise HTTPException(
+                409, "Профиль изменился. Войдите в исходный профиль для сохранения."
+            )
     _board(body.fen, body.best_uci)
     if body.played_uci is not None:
         _board(body.fen, body.played_uci)

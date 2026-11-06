@@ -49,7 +49,7 @@ def lesson_context(lesson: dict) -> str:
     for s in lesson["segments"]:
         if s["type"] == "markdown":
             parts.append(s["text"])
-        else:
+        elif s["type"] == "chess":
             n += 1
             sol = " ".join(s["solution"])
             parts.append(f"Позиция {n}. Задание: {s['task']} Подсказка: {s['hint']} Решение: {sol}")

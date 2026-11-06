@@ -434,3 +434,31 @@ def test_users_cannot_reach_each_others_data(cfg, pair, admin):
     own = b.get("/api/progress").json()
     assert own.pop("calendar") and len(own.pop("weeks")) == 8
     assert admin.get(f"/api/admin/users/{ub['id']}/progress").json() == own
+
+
+def test_late_play_mutations_reject_changed_cookie_owner(app, pair):
+    a, b, _, _ = pair
+    # The browser keeps the old payload, but another tab has replaced its cookie.
+    game = {
+        "expected_login": "alice",
+        "client_id": "late-game",
+        "pgn": PGN,
+        "player_color": "white",
+        "result": "*",
+        "blunders": 1,
+    }
+    card = {
+        "expected_login": "alice",
+        "source": "play",
+        "fen": FEN,
+        "best_uci": "a1a8",
+        "played_uci": "a1a2",
+        "classification": "blunder",
+    }
+    assert b.post("/api/games", json=game).status_code == 409
+    assert b.post("/api/mistakes", json=card).status_code == 409
+    assert b.get("/api/games").json() == []
+    assert b.get("/api/mistakes/stats").json()["total"] == 0
+    # Original queue payload remains valid when the original owner returns.
+    assert a.post("/api/games", json=game).status_code == 201
+    assert a.post("/api/mistakes", json=card).status_code == 200
