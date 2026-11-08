@@ -10,6 +10,7 @@ import {
 } from '../api/mistakes'
 import { Board, type Move } from '../components/Board'
 import { CoachPanel } from '../components/CoachPanel'
+import { ExerciseAnalysis } from '../components/ExerciseAnalysis'
 import { lineArrows } from '../chess/arrows'
 import { toFigurine, toUci } from '../chess/notation'
 import { plural } from '../plural'
@@ -45,6 +46,7 @@ export default function Mistakes() {
   const [busy, setBusy] = useState(false)
   const [mine, setMine] = useState('')
   const [ans, setAns] = useState<MistakeAnswer | null>(null)
+  const [examining, setExamining] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -93,6 +95,20 @@ export default function Mistakes() {
   const left = next ? Math.max(0, Math.min(next.due, next.today.limit - next.today.reviewed)) : 0
   const limitReached = !!next && next.today.reviewed >= next.today.limit
 
+  if (examining && card && ans) {
+    return (
+      <>
+        <h1>Колода ошибок</h1>
+        <ExerciseAnalysis
+          fen={card.fen}
+          continuation={[ans.best_uci]}
+          orientation={card.side}
+          onClose={() => setExamining(false)}
+        />
+      </>
+    )
+  }
+
   return (
     <>
       <h1>Колода ошибок</h1>
@@ -129,6 +145,11 @@ export default function Mistakes() {
             {card.played_san && <p data-testid="deck-played">В партии вы сыграли {toFigurine(card.played_san)}</p>}
             {ans && !ans.correct && ans.explanation && <CoachPanel text={ans.explanation.text} source={ans.explanation.source} />}
             <div className={css.controls}>
+              {ans && (
+                <button type="button" onClick={() => setExamining(true)}>
+                  Разобрать варианты
+                </button>
+              )}
               <button type="button" onClick={() => void load()} disabled={!ans}>
                 Следующая карточка
               </button>

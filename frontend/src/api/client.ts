@@ -62,8 +62,8 @@ export const getOpponentLevels = () => call<OpponentLevel[]>('/api/opponent/leve
 export const getOpponentMove = (moves: string[], level: number) =>
   call<OpponentMove>('/api/opponent/move', { moves, level })
 
-export const analyze = (fen: string, movetime_ms = 300) =>
-  call<Analysis>('/api/analyze', { fen, movetime_ms })
+export const analyze = (fen: string, movetime_ms = 300, multipv?: number) =>
+  call<Analysis>('/api/analyze', { fen, movetime_ms, multipv })
 
 export const saveGame = signalled((game: GameRecord) => call<{ id: number }>('/api/games', game))
 

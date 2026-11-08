@@ -46,6 +46,10 @@
   min-width: 44px;
   min-height: 44px;
 }
+.flip {
+  margin-top: 8px;
+  min-height: 44px;
+}
 .moments {
   list-style: none;
   margin: 0;

@@ -76,7 +76,7 @@ test('review key moment: questions show answers and arrows', async ({ page, hasT
   await askAll(page, moment, press)
 })
 
-test('review, black side, flipped board: arrows start and end on the squares of the real move', async ({
+test('review shows each coach line on its starting position and clears it on a flip', async ({
   page,
   hasTouch,
 }) => {
@@ -88,10 +88,28 @@ test('review, black side, flipped board: arrows start and end on the squares of 
   await press(page.locator('section', { hasText: 'Вставьте PGN' }).getByRole('button', { name: 'Разобрать' }))
   const moment = page.getByTestId('key-moment').first()
   await expect(moment).toContainText('♘f6??', { timeout: 20_000 })
+  await press(page.getByRole('button', { name: 'В начало' }))
+  await press(moment.getByRole('button', { name: 'Показать позицию' }))
+  const knightBefore = page.locator('[data-square="g8"] [data-piece="bN"]')
+  const knightAfter = page.locator('[data-square="f6"] [data-piece="bN"]')
+  const queen = page.locator('[data-square="h5"] [data-piece="wQ"]')
+  const flip = page.getByRole('button', { name: 'Перевернуть доску' })
+  await expect(knightBefore).toBeVisible()
   await press(moment.getByRole('button', { name: 'Что угрожает?' }))
   await expect(page.locator('[data-arrow-squares="h5f7"]')).toBeVisible()
+  await expect(knightAfter).toBeVisible()
+  await press(flip)
+  await expect(page.locator('[data-arrows="0"]')).toBeVisible()
+  await expect(knightAfter).toBeVisible()
+  await expect(queen).toBeVisible()
+  await press(flip)
   await press(moment.getByRole('button', { name: 'Что надо было делать?' }))
   await expect(page.locator('[data-arrow-squares^="g7g6"]')).toBeVisible()
+  await expect(knightBefore).toBeVisible()
+  await press(flip)
+  await expect(page.locator('[data-arrows="0"]')).toBeVisible()
+  await expect(knightBefore).toBeVisible()
+  await expect(queen).toBeVisible()
 })
 
 test('review: a free question that names a move gets a template answer with that move (LLM off)', async ({

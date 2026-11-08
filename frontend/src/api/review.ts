@@ -33,14 +33,20 @@ export interface KeyMoment {
   }
   explanation: { text: string; source: string }
 }
-export interface ReviewResult {
-  side: 'white' | 'black'
-  moves: ReviewMove[]
+interface SideReview {
   key_moments: KeyMoment[]
   summary: { inaccuracy: number; mistake: number; blunder: number }
 }
 
+export interface ReviewResult extends SideReview {
+  side: 'white' | 'black'
+  moves: ReviewMove[]
+  other_side?: SideReview
+}
+
 export const getGames = () => call<GameRow[]>('/api/games')
 
-export const reviewGame = (body: { pgn: string; side: 'white' | 'black' } | { game_id: number; practice?: boolean }) =>
+export const reviewGame = (body: (
+  { pgn: string; side: 'white' | 'black' } | { game_id: number; practice?: boolean }
+) & { both_sides?: boolean }) =>
   call<ReviewResult>('/api/review', body)

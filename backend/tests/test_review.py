@@ -47,11 +47,21 @@ def test_blunder_and_mate(client):
 
 @pytest.mark.engine
 def test_game_id(client):
+    pgn = "1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Nc3 a6 5. Qxf7#"
     gid = client.post(
-        "/api/games", json={"pgn": MATE, "player_color": "black", "result": "1-0"}
+        "/api/games", json={"pgn": pgn, "player_color": "black", "result": "1-0"}
     ).json()["id"]
-    data = client.post("/api/review", json={"game_id": gid}).json()
-    assert data["side"] == "black" and len(data["moves"]) == 7
+    response = client.post(
+        "/api/review", json={"game_id": gid, "both_sides": True, "practice": True}
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["side"] == "black" and len(data["moves"]) == 9
+    assert {6, 8} <= {m["ply"] for m in data["key_moments"] if m["classification"] == "blunder"}
+    assert any(
+        m["ply"] == 7 and m["classification"] == "blunder"
+        for m in data["other_side"]["key_moments"]
+    )
 
 
 @pytest.mark.engine
@@ -108,7 +118,7 @@ def test_saved_review_counts_all_player_blunders_not_cards(monkeypatch, tmp_path
     from app.review import routes
 
     # Fake only the UCI engine boundary. Use the real analysis, facts and route code.
-    pgn = "1. e4 d6 2. Nf3 g6 3. Nc3 Bg7 4. Bc4 c6 5. d4 b5 6. Bd3 Nf6 7. h3 Bb7 *"
+    pgn = "1. e4 d6 2. Nf3 g6 3. Nc3 Bg7 4. Bc4 c6 5. d4 b5 6. Bd3 Nf6 7. h3 *"
     board, moves = routes.parse_pgn(pgn)
     played = {}
     for move in moves:
@@ -134,6 +144,16 @@ def test_saved_review_counts_all_player_blunders_not_cards(monkeypatch, tmp_path
     with TestClient(create_app(cfg)) as c:
         c.app.state.pool = Pool()
         best = c.app.state.pool.analyse(chess.Board(), 1)[1][0]["pv_uci"][0]
+        db = connect(cfg.app_db_path)
+        raw = c.post("/api/review", json={"pgn": pgn, "both_sides": True})
+        assert raw.status_code == 200, raw.text
+        raw_data = raw.json()
+        other = raw_data["other_side"]
+        assert other["summary"]["blunder"] == 6
+        assert [m["ply"] for m in other["key_moments"]] == [2, 4, 6, 8, 10]
+        assert all(m["explanation"]["source"] == "template" for m in other["key_moments"])
+        for table in ("games", "mistake_events", "mistakes"):
+            assert db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
         payload = {
             "client_id": "saved-review",
             "pgn": pgn,
@@ -142,14 +162,17 @@ def test_saved_review_counts_all_player_blunders_not_cards(monkeypatch, tmp_path
             "errors": [{"ply": 1, "best_uci": best, "classification": "blunder"}],
         }
         gid = c.post("/api/games", json=payload).json()["id"]
-        db = connect(cfg.app_db_path)
         with db:
             db.execute("UPDATE games SET created_at = '2026-10-13T00:00:00Z' WHERE id = ?", (gid,))
-        for _ in range(2):
-            response = c.post("/api/review", json={"game_id": gid})
+        legacy = {k: v for k, v in raw_data.items() if k != "other_side"}
+        for request_body in ({"side": "black", "both_sides": True}, {}):
+            response = c.post("/api/review", json={"game_id": gid, **request_body})
             assert response.status_code == 200, response.text
-            assert response.json()["summary"]["blunder"] == 7
-            assert len(response.json()["key_moments"]) == 5
+            data = response.json()
+            assert data["side"] == "white"
+            assert data["summary"]["blunder"] == 7
+            assert [m["ply"] for m in data["key_moments"]] == [1, 3, 5, 7, 9]
+            assert data == (raw_data if request_body else legacy)
             row = db.execute(
                 "SELECT blunders, created_at FROM games WHERE id = ?", (gid,)
             ).fetchone()
@@ -157,7 +180,9 @@ def test_saved_review_counts_all_player_blunders_not_cards(monkeypatch, tmp_path
             events = db.execute(
                 "SELECT ply, origin FROM mistake_events WHERE game_id = ? ORDER BY ply", (gid,)
             ).fetchall()
-            assert len(events) == 5 and tuple(events[0]) == (1, "play")
+            assert [event["ply"] for event in events] == [1, 3, 5, 7, 9]
+            assert events[0]["origin"] == "play"
+            assert db.execute("SELECT COUNT(*) FROM mistakes").fetchone()[0] == 5
         reviewed = db.execute(
             "SELECT ply, best_uci FROM mistake_events WHERE game_id = ? AND origin = 'review'",
             (gid,),

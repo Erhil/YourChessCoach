@@ -19,13 +19,18 @@ const NAV = [
   ['⏭', 'В конец'],
 ] as const
 
+type ReviewView = {
+  side: ReviewResult['side']
+  shown: KeyMoment | null
+  asked: { arrows: Arrow[]; fen: string } | null
+}
+
 export default function Review() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [res, setRes] = useState<ReviewResult | null>(null)
-  const [asked, setAsked] = useState<Arrow[] | null>(null) // arrows of a coach answer
+  const [view, setView] = useState<ReviewView>({ side: 'white', shown: null, asked: null })
   const [cur, setCur] = useState(0) // number of plies shown
-  const [shown, setShown] = useState<KeyMoment | null>(null)
   const [game, setGame] = useState<number | null>(null)
   const [practice, setPractice] = useState<KeyMoment | null>(null)
   const request = useRef<symbol | null>(null)
@@ -47,16 +52,16 @@ export default function Review() {
     setBusy(true)
     setError('')
     setRes(null)
-    setShown(null)
-    setAsked(null)
+    setView({ side: 'white', shown: null, asked: null })
     setPractice(null)
     try {
-      const r = await reviewGame(body)
+      const r = await reviewGame({ ...body, both_sides: true })
       if (request.current !== id) return
       const saved = 'game_id' in body ? body.game_id : null
       window.history.replaceState(window.history.state, '', saved ? `?game=${saved}` : window.location.pathname)
       setGame(saved)
       setRes(r)
+      setView({ side: r.side, shown: null, asked: null })
       setCur(r.moves.length)
     } catch (e) {
       if (request.current === id) {
@@ -75,14 +80,26 @@ export default function Review() {
     if (id > 0) void run({ game_id: id, practice: true })
   }, [])
 
+  const { side, shown, asked } = view
+  const clearView = (nextSide = side) => setView({ side: nextSide, shown: null, asked: null })
   const go = (n: number) => {
-    setShown(null)
-    setAsked(null)
+    clearView()
     setCur(n)
+  }
+  const sideReview = side === res?.side ? res : res?.other_side
+  const color = side === 'white' ? 'Белые' : 'Чёрные'
+  const opposite = side === 'white' ? 'black' : 'white'
+  const flip = () => {
+    if (shown) {
+      // Keep the reply position when it follows the played move. A variant returns to its starting moment.
+      const afterPlayedMove = asked?.arrows.length && asked.fen === fens[shown.ply]
+      setCur(afterPlayedMove ? shown.ply : shown.ply - 1)
+    }
+    clearView(opposite)
   }
   const target = [0, cur - 1, cur + 1, fens.length - 1]
   const arrows =
-    asked ??
+    asked?.arrows ??
     (shown
     ? [
         ...lineArrows(shown.facts.fen_before, [shown.facts.player_move.uci]).map((a) => ({ ...a, color: 'red' as const })),
@@ -98,14 +115,14 @@ export default function Review() {
       {busy && <p role="status">Идёт разбор…</p>}
       {error && <p role="alert">{error}</p>}
       {res && game && practice && (
-        <ReviewPractice key={`${game}:${practice.ply}`} game={game} moment={practice} side={res.side} onExit={() => setPractice(null)} />
+        <ReviewPractice key={`${game}:${practice.ply}`} game={game} moment={practice} side={side} onExit={() => setPractice(null)} />
       )}
-      {res && !practice && (
+      {res && sideReview && !practice && (
         <div className={css.layout}>
           <div>
             <Board
-              position={shown ? shown.facts.fen_before : fens[cur]}
-              orientation={res.side}
+              position={asked?.arrows.length ? asked.fen : shown?.facts.fen_before ?? fens[cur]}
+              orientation={side}
               canMove={false}
               onMove={noMove}
               lastMove={lastUci ? splitUci(lastUci) : null}
@@ -124,34 +141,37 @@ export default function Review() {
                 </button>
               ))}
             </div>
+            {res.other_side && (
+              <button className={css.flip} type="button" onClick={flip}>Перевернуть доску</button>
+            )}
           </div>
           <div className={css.side}>
             <p>
-              Неточности: {res.summary.inaccuracy} · Ошибки: {res.summary.mistake} · Зевки: {res.summary.blunder}
+              {color}. Неточности: {sideReview.summary.inaccuracy} · Ошибки: {sideReview.summary.mistake} · Зевки: {sideReview.summary.blunder}
             </p>
             <OpeningName moves={uci} />
             <MoveList
               moves={res.moves.map((m) => m.san)}
-              marks={res.moves.map((m) => (m.color === res.side ? (MARKS[m.classification] ?? '') : ''))}
+              start={{ fullmove: Number(fens[0].split(' ')[5]), black: res.moves[0].color === 'black' }}
+              marks={res.moves.map((m) => (res.other_side || m.color === side ? (MARKS[m.classification] ?? '') : ''))}
               current={shown ? -1 : cur - 1}
               onSelect={(ply) => go(ply + 1)}
             />
             <h2>Ключевые моменты</h2>
             <KeyMoments
-              moments={res.key_moments}
+              moments={sideReview.key_moments}
+              side={side}
               shown={shown}
               onShow={(m) => {
                 if (game) markReviewRevealed(game, m.ply)
-                setAsked(null)
-                setShown(m)
+                setView({ side, shown: m, asked: null })
               }}
-              onAsk={(m, a) => {
-                setShown(m)
-                setAsked(a)
+              onAsk={(m, arrows, fen) => {
+                // A delayed coach answer must not move the board after navigation or a flip.
+                setView((current) => current === view ? { side, shown: m, asked: { arrows, fen } } : current)
               }}
               onPractice={game ? (m) => {
-                setShown(null)
-                setAsked(null)
+                clearView()
                 setPractice(m)
               } : undefined}
             />

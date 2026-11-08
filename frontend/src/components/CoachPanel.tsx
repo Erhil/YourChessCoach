@@ -12,7 +12,7 @@ type Props = {
   fen?: string
   move?: string
   classification?: string
-  onArrows?: (arrows: Arrow[]) => void
+  onArrows?: (arrows: Arrow[], fen: string) => void
 }
 
 export function CoachPanel({ text, source, lesson, onShow, fen, move, classification, onArrows }: Props) {

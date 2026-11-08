@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Board } from '../components/Board'
 import { CoachPanel } from '../components/CoachPanel'
+import { ExerciseAnalysis } from '../components/ExerciseAnalysis'
 import { usePuzzle } from '../puzzles/usePuzzle'
 import css from './Puzzles.module.css'
 
@@ -9,6 +11,7 @@ const sign = (n: number) => (n > 0 ? `+${n}` : String(n))
 export default function Puzzles() {
   const z = usePuzzle()
   const navigate = useNavigate()
+  const [examining, setExamining] = useState(false)
   // «Одна задача» from «Сегодня»: after the end the learner chooses one more or a stop.
   const one = useSearchParams()[0].get('one') === '1'
   const ended = z.phase === 'solved' || z.phase === 'failed' || z.phase === 'solution'
@@ -22,6 +25,21 @@ export default function Puzzles() {
     solution: 'Решение:',
     error: 'Не удалось загрузить задачу.',
   }[z.phase]
+
+  if (examining && ended && z.p) {
+    return (
+      <>
+        <h1>Задачи</h1>
+        <ExerciseAnalysis
+          fen={z.p.fen}
+          setupMove={z.p.opponent_move}
+          continuation={z.p.solution}
+          orientation={color}
+          onClose={() => setExamining(false)}
+        />
+      </>
+    )
+  }
 
   return (
     <>
@@ -79,6 +97,11 @@ export default function Puzzles() {
             {(z.phase === 'failed' || z.phase === 'play') && (
               <button type="button" onClick={z.showSolution}>
                 Показать решение
+              </button>
+            )}
+            {ended && z.p && (
+              <button type="button" onClick={() => setExamining(true)}>
+                Разобрать варианты
               </button>
             )}
             {one && ended ? (

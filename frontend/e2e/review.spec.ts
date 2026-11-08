@@ -58,6 +58,64 @@ test('review opens a saved game from ?game=', async ({ page, request }) => {
   await expect(page.getByText('Неточности:')).toBeVisible()
 })
 
+test('saved review flips to the other side without another analysis', async ({ page, request, hasTouch }) => {
+  test.setTimeout(60_000)
+  const press = (l: Locator) => (hasTouch ? l.tap() : l.click())
+  const pgn = `[SetUp "1"]
+[FEN "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3"]
+
+3... Nf6 4. Nc3 a6 5. Qxf7#`
+  const saved = await request.post('/api/games', {
+    data: { pgn, player_color: 'black', level: 800, result: '1-0', termination: 'checkmate' },
+  })
+  expect(saved.ok()).toBeTruthy()
+  const { id } = (await saved.json()) as { id: number }
+  const requests: unknown[] = []
+  page.on('request', (r) => {
+    if (new URL(r.url()).pathname === '/api/review') requests.push(r.postDataJSON())
+  })
+  await page.goto(`/review?game=${id}`)
+  const moment = (title: string) => page.getByTestId('key-moment').filter({
+    has: page.getByRole('heading', { name: title }),
+  })
+  const black = moment('Чёрные · 3... ♘f6?? — зевок')
+  const white = moment('Белые · 4. ♘c3?? — зевок')
+  const square = (name: string) => page.locator(`[data-square="${name}"]`)
+  const firstRankOnTop = async () => (await square('a1').boundingBox())!.y < (await square('a8').boundingBox())!.y
+  const list = page.getByRole('list', { name: 'Ходы партии' })
+  const flip = page.getByRole('button', { name: 'Перевернуть доску' })
+  const trainer = (m: Locator) => m.getByRole('complementary', { name: 'Тренер' })
+
+  await expect(black).toBeVisible({ timeout: 20_000 })
+  expect(await firstRankOnTop()).toBe(true)
+  await expect(page.getByText(/Чёрные\. Неточности:.*Зевки: 2/)).toBeVisible()
+  await expect(white).toHaveCount(0)
+  await expect(trainer(black)).toHaveCount(0)
+  await expect(list.getByRole('listitem').first()).toHaveText('3...♘f6??')
+  await expect(list.getByRole('button', { name: '♘c3??' })).toBeVisible()
+  await press(list.getByRole('button', { name: '♘f6??' }))
+  await press(black.getByRole('button', { name: 'Показать позицию' }))
+  await expect(trainer(black)).toBeVisible()
+  await expect(square('g8').locator('[data-piece="bN"]')).toBeVisible()
+
+  await press(flip)
+  await expect(white).toBeVisible()
+  expect(await firstRankOnTop()).toBe(false)
+  await expect(black).toHaveCount(0)
+  await expect(page.getByText(/Белые\. Неточности:.*Зевки: 1/)).toBeVisible()
+  await expect(square('g8').locator('[data-piece="bN"]')).toBeVisible()
+  await expect(page.locator('[data-arrows="0"]')).toBeVisible()
+  await expect(trainer(white)).toHaveCount(0)
+
+  await press(white.getByRole('button', { name: 'Попробовать ход' }))
+  const practice = page.getByRole('region', { name: 'Самостоятельная попытка' })
+  await expect(practice.getByText('Найдите хороший ход за белых.')).toBeVisible()
+  expect(await firstRankOnTop()).toBe(false)
+  await expect(practice.getByRole('button', { name: 'Показать решение' })).toBeVisible()
+  await expect(practice.getByRole('button', { name: 'Следующий ход решения' })).toHaveCount(0)
+  expect(requests).toEqual([{ game_id: id, practice: true, both_sides: true }])
+})
+
 test('saved review keeps the first attempt and checks an alternative after reveal', async ({ page, request, hasTouch }, info) => {
   test.setTimeout(60_000)
   const press = (l: Locator) => (hasTouch ? l.tap() : l.click())
@@ -67,7 +125,7 @@ test('saved review keeps the first attempt and checks an alternative after revea
   expect(saved.ok()).toBeTruthy()
   const { id } = (await saved.json()) as { id: number }
   await page.goto(`/review?game=${id}`)
-  const moment = page.getByTestId('key-moment').filter({ hasText: 'Ход 3' })
+  const moment = page.getByTestId('key-moment').filter({ hasText: '3... ♘f6' })
   const start = moment.getByRole('button', { name: 'Попробовать ход' })
   await expect(start).toBeVisible({ timeout: 20_000 })
   await expect(moment.getByRole('complementary', { name: 'Тренер' })).toHaveCount(0)
@@ -135,7 +193,7 @@ test('saved review keeps the first attempt and reveal across tabs', async ({ pag
   expect(saved.ok()).toBeTruthy()
   const { id } = (await saved.json()) as { id: number }
   const other = await context.newPage()
-  const start = (tab: Page) => tab.getByTestId('key-moment').filter({ hasText: 'Ход 3' })
+  const start = (tab: Page) => tab.getByTestId('key-moment').filter({ hasText: '3... ♘f6' })
     .getByRole('button', { name: 'Попробовать ход' })
   const practice = (tab: Page) => tab.getByRole('region', { name: 'Самостоятельная попытка' })
   const play = async (tab: Page, from: string, to: string) => {
@@ -165,7 +223,7 @@ test('saved review keeps the first attempt and reveal across tabs', async ({ pag
     await expect(practice(other).getByText('Stockfish нашёл ход сильнее.', { exact: false })).toBeVisible()
     await expect(practice(other).getByText(firstPending)).toBeVisible()
     await press(practice(other).getByRole('button', { name: 'Вернуться к разбору' }))
-    await press(other.getByTestId('key-moment').filter({ hasText: 'Ход 3' })
+    await press(other.getByTestId('key-moment').filter({ hasText: '3... ♘f6' })
       .getByRole('button', { name: 'Показать позицию' }))
 
     release()
@@ -192,7 +250,7 @@ test('saved review can recover a lost first verdict after another tab accepts a 
   const { id } = (await saved.json()) as { id: number }
   const other = await context.newPage()
   const openPractice = async (tab: Page) => {
-    const start = tab.getByTestId('key-moment').filter({ hasText: 'Ход 3' })
+    const start = tab.getByTestId('key-moment').filter({ hasText: '3... ♘f6' })
       .getByRole('button', { name: 'Попробовать ход' })
     await expect(start).toBeVisible({ timeout: 20_000 })
     await press(start)

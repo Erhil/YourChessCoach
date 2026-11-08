@@ -15,7 +15,7 @@ type Props = {
   move: string
   /** Of the move: «why is the move bad» is offered only for an inaccuracy, a mistake or a blunder. */
   classification?: string
-  onArrows?: (arrows: Arrow[]) => void
+  onArrows?: (arrows: Arrow[], fen: string) => void
 }
 
 export function AskMove({ fen, move, classification, onArrows }: Props) {
@@ -33,7 +33,10 @@ export function AskMove({ fen, move, classification, onArrows }: Props) {
           if (r.answer && r.line) {
             // «better» is the student's line (green, then the replies); the other answers show the opponent's move.
             const arrows = lineArrows(r.line.fen, r.line.moves)
-            onArrows?.(question === 'better' ? arrows : arrows.map((a) => ({ ...a, color: 'red' as const })))
+            onArrows?.(
+              question === 'better' ? arrows : arrows.map((a) => ({ ...a, color: 'red' as const })),
+              r.line.fen,
+            )
           }
         },
         () => setReply('Тренер сейчас недоступен'),

@@ -97,6 +97,38 @@ test.describe('puzzles', () => {
     })
   })
 
+  test('analysis replays the solution from the learner position and preserves the result', async ({ page }) => {
+    const pz = await open(page)
+    await yourTurn(page)
+    const chess = new Chess(pz.fen)
+    chess.move(pz.opponent_move)
+    let attempts = 0
+    page.on('request', (r) => {
+      if (/\/api\/puzzles\/[^/]+\/attempt$/.test(r.url())) attempts++
+    })
+    await press(page.getByRole('button', { name: 'Показать решение' }))
+    const rating = page.getByTestId('rating-change')
+    await expect(rating).toBeVisible()
+    const savedRating = await rating.innerText()
+
+    const initialAnalysis = page.waitForRequest('**/api/analyze')
+    await press(page.getByRole('button', { name: 'Разобрать варианты' }))
+    const analysis = page.getByRole('region', { name: 'Разбор вариантов' })
+    expect((await initialAnalysis).postDataJSON()).toMatchObject({ fen: chess.fen(), multipv: 3 })
+    const forward = analysis.getByRole('button', { name: 'Вперёд' })
+    const back = analysis.getByRole('button', { name: 'Назад' })
+    await press(forward)
+    await expect(analysis.getByRole('status', { name: 'Позиция в разборе' })).toContainText('Ход 1.')
+    await press(back)
+    await expect(analysis.getByRole('status', { name: 'Позиция в разборе' })).toContainText('Начальная позиция.')
+    await expect(forward).toBeEnabled()
+    await press(analysis.getByRole('button', { name: 'Закрыть разбор' }))
+    await expect(status(page)).toHaveText('Решение:')
+    await expect(rating).toHaveText(savedRating)
+    await expect(page.getByRole('button', { name: 'Следующая задача' })).toBeEnabled()
+    expect(attempts).toBe(1)
+  })
+
   test('hint names the piece', async ({ page }) => {
     await open(page)
     await yourTurn(page)

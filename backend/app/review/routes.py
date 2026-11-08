@@ -29,6 +29,7 @@ class ReviewRequest(BaseModel):
     side: Literal["white", "black"] | None = None
     game_id: int | None = None
     practice: bool = False
+    both_sides: bool = False
 
     @model_validator(mode="after")
     def _one_source(self) -> "ReviewRequest":
@@ -65,10 +66,11 @@ def review(body: ReviewRequest, request: Request, db: Db, user_id: UserId) -> di
         pgn, side = row["pgn"], row["player_color"]
     start, moves = parse_pgn(pgn)
     pool, settings = request.app.state.pool, request.app.state.settings
-    try:
-        rows = review_moves(pool, start, moves, settings)
-        bad = [r for r in rows if r["color"] == side and r["classification"] in BAD]
-        bad = sorted(bad, key=lambda r: r["drop"], reverse=True)
+
+    def review_side(color: str, *, use_template: bool) -> dict:
+        bad = [r for r in rows if r["color"] == color and r["classification"] in BAD]
+        summary = {k: sum(1 for r in bad if r["classification"] == k) for k in BAD}
+        bad.sort(key=lambda r: r["drop"], reverse=True)
         moments = []
         for r in bad:
             if len(moments) == MAX_MOMENTS:
@@ -86,20 +88,26 @@ def review(body: ReviewRequest, request: Request, db: Db, user_id: UserId) -> di
                     "facts": facts,
                     "explanation": (
                         {"text": explain(facts), "source": "template", "model": None}
-                        if body.game_id is not None and body.practice
+                        if use_template
                         else explain_facts(facts, db, request.app.state.llm, settings)
                     ),
                 }
             )
         moments.sort(key=lambda m: m["ply"])
+        return {"key_moments": moments, "summary": summary}
+
+    try:
+        rows = review_moves(pool, start, moves, settings)
+        own = review_side(side, use_template=body.game_id is not None and body.practice)
+        result = {"side": side, "moves": rows, **own}
+        if body.both_sides:
+            other_color = "black" if side == "white" else "white"
+            result["other_side"] = review_side(other_color, use_template=True)
     except EngineUnavailableError as exc:
         raise HTTPException(503, str(exc)) from exc
-    summary = {
-        k: sum(1 for r in rows if r["color"] == side and r["classification"] == k) for k in BAD
-    }
     if body.game_id is not None:
         errors = []
-        for m in moments:
+        for m in own["key_moments"]:
             f = m["facts"]
             if f.classification in ("mistake", "blunder") and f.best_move:
                 motif = (f.motifs_missed or f.motifs_against or [None])[0]
@@ -117,10 +125,10 @@ def review(body: ReviewRequest, request: Request, db: Db, user_id: UserId) -> di
             first_review = db.execute(
                 "UPDATE games SET blunders = COALESCE(blunders, ?), mistakes_reviewed = 1"
                 " WHERE id = ? AND user_id = ? AND mistakes_reviewed = 0",
-                (summary["blunder"], body.game_id, user_id),
+                (own["summary"]["blunder"], body.game_id, user_id),
             )
             if first_review.rowcount == 1:
                 record_game_errors(db, user_id, body.game_id, "review", start, moves, side, errors)
     for r in rows:
         del r["drop"]
-    return {"side": side, "moves": rows, "key_moments": moments, "summary": summary}
+    return result
