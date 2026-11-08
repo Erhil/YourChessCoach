@@ -42,6 +42,8 @@ The chess engine computes. The app renders chess claims from trusted facts and l
 ## Features
 
 - **Today.** A short training plan with three daily tasks and check marks; you can replace one task a day.
+  The five-minute session offers a position from your own game and a new exercise. A basic exercise is available before you have game history.
+  You can pause and resume a session. When a delayed check is due, the app looks for a new position.
   Plan themes rotate. Recent results and hints adjust the puzzle target from 3 to 7; themes with few attempts remain provisional.
   A week goal of 3, 4 or 5 active days, and a "One puzzle" button for days with little time.
   After a break of three days or more, the app welcomes you back without a list of missed days.
@@ -57,6 +59,7 @@ The chess engine computes. The app renders chess claims from trusted facts and l
 - **Lessons.** 31 lessons with interactive positions: from how the pieces move to rook endgames, plus a section on openings.
   A move that the engine rates as equal to the best move counts as correct, and so does any mate.
 - **Game review.** Review a saved game or a pasted PGN: marks ?!, ? and ?? on moves, and up to five key moments with explanations.
+  Select “Попробовать ход” in a saved game. Stockfish checks your move, then you can step through the solution.
   A click on the opening name opens an opening card with the main line and puzzles for it.
 - **Mistakes deck.** Your blunders from games, mistakes from reviews and failed puzzles become cards for spaced repetition.
   The engine checks each answer. Three correct answers in a row mark a learned milestone; later reviews continue at longer intervals.

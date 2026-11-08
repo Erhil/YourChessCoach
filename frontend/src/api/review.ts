@@ -42,5 +42,5 @@ export interface ReviewResult {
 
 export const getGames = () => call<GameRow[]>('/api/games')
 
-export const reviewGame = (body: { pgn: string; side: 'white' | 'black' } | { game_id: number }) =>
+export const reviewGame = (body: { pgn: string; side: 'white' | 'black' } | { game_id: number; practice?: boolean }) =>
   call<ReviewResult>('/api/review', body)

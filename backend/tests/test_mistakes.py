@@ -394,4 +394,6 @@ def test_legacy_learned_cards_keep_milestone_and_receive_future_due_date(tmp_pat
     assert before + timedelta(days=7) <= due <= datetime.now(UTC) + timedelta(days=60)
     migrate(path)
     assert conn.execute("SELECT due_at FROM mistakes").fetchone()[0] == row[4]
+    assert conn.execute("SELECT review_version FROM mistakes").fetchone()[0] == 5
+    assert conn.execute("SELECT COUNT(*) FROM mistake_events").fetchone()[0] == 0
     conn.close()

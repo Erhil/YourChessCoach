@@ -71,11 +71,30 @@ test.describe('puzzles', () => {
       const uci = m.from + m.to + (m.promotion ?? '')
       return uci !== pz.solution[0] && !m.promotion && !new Chess(m.after).isCheckmate()
     })!
-    await play(page, bad.from + bad.to)
+    const request = () => page.waitForRequest((r) => /\/api\/puzzles\/[^/]+\/attempt$/.test(r.url()))
+    const failed = request()
+    const uci = bad.from + bad.to
+    await play(page, uci)
+    const first = (await failed).postDataJSON()
+    expect(first).toMatchObject({ solved: false, used_hint: false, details: { ply: 1, played_uci: uci, first_uci: uci, revealed: false, elapsed_ms: expect.any(Number) } })
     await expect(status(page)).toHaveText('Неверно')
     await expect(page.getByLabel('Тренер')).toBeVisible({ timeout: 15_000 })
+    const revealed = request()
     await press(page.getByRole('button', { name: 'Показать решение' }))
     await expect(status(page)).toHaveText('Решение:')
+    expect((await revealed).postDataJSON()).toEqual({ ...first, details: { ...first.details, revealed: true } })
+  })
+
+  test('revealing without a move submits no invented move', async ({ page }) => {
+    await open(page)
+    await yourTurn(page)
+    const revealed = page.waitForResponse((r) => /\/api\/puzzles\/[^/]+\/attempt$/.test(r.url()))
+    await press(page.getByRole('button', { name: 'Показать решение' }))
+    const response = await revealed
+    expect(response.ok()).toBe(true)
+    expect(response.request().postDataJSON()).toMatchObject({
+      solved: false, used_hint: true, details: { ply: 1, played_uci: null, first_uci: null, revealed: true },
+    })
   })
 
   test('hint names the piece', async ({ page }) => {

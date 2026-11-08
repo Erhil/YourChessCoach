@@ -28,7 +28,8 @@ test('a delayed confirmation preserves newer attempts and another user queue', a
 
 test('an uncertain response retains the same ID for retry', async () => {
   setSessionLogin('queue-retry')
-  const entry = enqueueAttempt('p1', true, false)
+  const details = { ply: 3, played_uci: 'e2e4', first_uci: 'e2e4', revealed: false, elapsed_ms: 340 }
+  const entry = enqueueAttempt('p1', false, false, undefined, details)
   const fetch = vi.fn().mockRejectedValueOnce(new Error('Response lost')).mockResolvedValueOnce(
     new Response(JSON.stringify({ rating_before: 600, rating_after: 610, delta: 10 })),
   )
@@ -37,7 +38,27 @@ test('an uncertain response retains the same ID for retry', async () => {
   expect(pendingAttempts()).toEqual([entry])
   await retryAttempts()
   expect(pendingAttempts()).toEqual([])
-  expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body).client_id)).toEqual([entry.client_id, entry.client_id])
+  const bodies = fetch.mock.calls.map((call) => JSON.parse(call[1].body))
+  expect(bodies).toEqual(Array(2).fill({ client_id: entry.client_id, expected_login: entry.login, solved: false, used_hint: false, details }))
+})
+
+test('an in-flight failure result cannot remove the later reveal from the outbox', async () => {
+  setSessionLogin('queue-reveal')
+  const details = { ply: 3, played_uci: 'e2e4', first_uci: 'e2e4', revealed: false, elapsed_ms: 340 }
+  const entry = enqueueAttempt('p1', false, false, undefined, details)
+  let resolve!: (value: Response) => void
+  const fetch = vi.fn()
+    .mockImplementationOnce(() => new Promise<Response>((r) => { resolve = r }))
+    .mockRejectedValueOnce(new Error('Offline'))
+  vi.stubGlobal('fetch', fetch)
+  const first = deliverAttempt(entry)
+  const revealed = enqueueAttempt('p1', false, false, entry.client_id, { ...details, revealed: true })
+  const updated = deliverAttempt(revealed)
+  resolve(new Response(JSON.stringify({ rating_before: 600, rating_after: 590, delta: -10 })))
+  await first
+  await expect(updated).rejects.toThrow('Offline')
+  expect(pendingAttempts()).toEqual([revealed])
+  expect(JSON.parse(fetch.mock.calls[1][1].body).details).toEqual({ ...details, revealed: true })
 })
 
 test('unavailable storage retains multiple attempts in memory and reports a warning', () => {

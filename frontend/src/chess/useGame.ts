@@ -7,7 +7,7 @@ import { sleep, toUci } from './notation'
 import { readHelp } from './coachSettings'
 import { gameStatus, type GameStatus } from './game'
 import { loadGame, storeGame, pendingKey, loadPending, storePending, removePending } from './gameStore'
-import { useCoach, type Verdict } from './useCoach'
+import { finishCoach, gameAnalysis, useCoach, type Verdict } from './useCoach'
 
 type Color = 'white' | 'black'
 export type Game = { clientId?: string; id: number; color: Color; level: number; sans: string[]; hints?: number; takebacks?: number }
@@ -64,6 +64,10 @@ export function countBlunders(g: Game, verdicts: Record<string, string>, termina
 /** Own moves made by the player (for black the opponent's first move does not count). */
 const ownMoves = (g: Game) => (g.color === 'white' ? Math.ceil(g.sans.length / 2) : Math.floor(g.sans.length / 2))
 
+// Play can remount while the previous page is waiting for coach facts or a save response.
+const sending = new Set<string>()
+const finalizing = new Set<string>()
+
 export function useGame() {
   const [g, setG] = useState<Game | null>(restore)
   const [resigned, setResigned] = useState(false)
@@ -78,8 +82,6 @@ export function useGame() {
   })
   // Keep failed disk writes available for retry during this visit.
   const unsaved = useRef(new Map<string, GameRecord>())
-  const sending = useRef(new Set<string>())
-  const finalizing = useRef(new Set<string>())
   const currentClient = useRef(g?.clientId)
   useEffect(() => { currentClient.current = g?.clientId }, [g?.clientId])
   const refreshPending = useCallback(() => {
@@ -101,7 +103,8 @@ export function useGame() {
   }, [refreshPending])
   const submit = useCallback((payload: GameRecord) => {
     const id = payload.client_id!
-    if (sending.current.has(id)) return
+    if (sending.has(id) || finalizing.has(id)) return
+    sending.add(id)
     // Persist before sending. If storage fails, report that reload recovery is unavailable.
     try {
       storePending(queueKey, payload)
@@ -112,23 +115,25 @@ export function useGame() {
       setStorageError(true)
     }
     refreshPending()
-    if (pendingKey() !== queueKey) return
-    sending.current.add(id)
+    if (pendingKey() !== queueKey) {
+      sending.delete(id)
+      return
+    }
     void saveGame(payload).then((r) => {
       unsaved.current.delete(id)
       try { removePending(queueKey, id) } catch { setStorageError(true) }
       refreshPending()
       if (currentClient.current === id) setSavedGameId(r.id)
-    }, () => setSaveError(true)).finally(() => sending.current.delete(id))
+    }, () => setSaveError(true)).finally(() => sending.delete(id))
   }, [queueKey, refreshPending])
   const retrySave = () => {
     setSaveError(false)
-    pending.filter((item) => !finalizing.current.has(item.client_id!)).forEach(submit)
+    pending.forEach(submit)
   }
   const nextId = useRef((g?.id ?? 0) + 1)
   const savedId = useRef(0)
-  const coach = useCoach()
-  const { wait: coachWait, finish: finishCoach } = coach
+  const coach = useCoach(g?.clientId)
+  const { wait: coachWait } = coach
   const epoch = useRef(0) // grows on a new game and on undo: drops a pending coach check
   const [checking, setChecking] = useState(false)
   const [warn, setWarn] = useState<{ m: Move; v: Verdict } | null>(null)
@@ -150,25 +155,26 @@ export function useGame() {
   const oppKey = g ? `${g.id}:${sans.length}` : ''
   const thinking = active && !playerTurn && oppError !== oppKey
 
-  const { verdicts } = coach
   const save = useCallback((game: Game, result: string, termination: string) => {
+    const clientId = game.clientId!
+    const { verdicts, errors } = gameAnalysis(clientId)
     const blunders = countBlunders(game, verdicts, termination)
     // The server accepts at most 600 of each.
     const takebacks = Math.min(game.takebacks ?? 0, 600)
     const hints = Math.min(game.hints ?? 0, 600)
-    const payload: GameRecord = { expected_login: login, client_id: game.clientId, pgn: pgnOf(game, result), player_color: game.color, level: game.level, result, termination, blunders, takebacks, hints }
+    const payload: GameRecord = { expected_login: login, client_id: clientId, pgn: pgnOf(game, result), player_color: game.color, level: game.level, result, termination, blunders, takebacks, hints, errors }
     // Queue immediately for reload recovery; submit after the engine facts settle.
-    finalizing.current.add(game.clientId!)
+    finalizing.add(clientId)
     try { storePending(queueKey, payload) } catch {
-      unsaved.current.set(game.clientId!, payload)
+      unsaved.current.set(clientId, payload)
       setStorageError(true)
     }
     refreshPending()
-    void finishCoach(game.id).then((facts) => {
-      finalizing.current.delete(game.clientId!)
-      submit({ ...payload, blunders: countBlunders(game, facts, termination) })
+    void finishCoach(clientId).then((facts) => {
+      finalizing.delete(clientId)
+      submit({ ...payload, blunders: countBlunders(game, facts.verdicts, termination), errors: facts.errors })
     })
-  }, [verdicts, submit, finishCoach, queueKey, refreshPending, login])
+  }, [submit, queueKey, refreshPending, login])
 
   // Keep the running game for the next visit.
   useEffect(() => {
@@ -243,7 +249,7 @@ export function useGame() {
       const played = c.move({ from: m.from, to: m.to, promotion: m.promotion })
       const mv = toUci(m)
       // The verdict is asked for every move: notes, icons and the mistakes deck all use it.
-      coach.begin(g.id, sans.length + 1, v === undefined ? ask(before, mv) : Promise.resolve(v), before, mv, c.fen())
+      coach.begin(g.clientId!, g.id, sans.length + 1, v === undefined ? ask(before, mv) : Promise.resolve(v), before, mv, c.fen())
       setG({ ...g, sans: [...sans, played.san] })
       return true
     } catch {
@@ -291,7 +297,7 @@ export function useGame() {
     if (!g || !canUndo) return
     setOppError(null)
     dropCoach()
-    coach.discard(g.id, sans.length - (playerTurn ? 2 : 1))
+    coach.discard(g.clientId!, g.id, sans.length - (playerTurn ? 2 : 1))
     setG({ ...g, sans: sans.slice(0, sans.length - (playerTurn ? 2 : 1)), takebacks: (g.takebacks ?? 0) + 1 })
   }
 

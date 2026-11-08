@@ -35,7 +35,7 @@ test('hidden coach cannot delay opponent; final save includes late facts', async
     await expect(page.getByText('Ожидают сохранения:', { exact: false })).toBeVisible()
     const saved = page.waitForRequest((r) => r.url().endsWith('/api/games') && r.method() === 'POST')
     release()
-    expect((await saved).postDataJSON().blunders).toBe(1)
+    expect((await saved).postDataJSON()).toMatchObject({ blunders: 1, errors: [{ ply: 1, best_uci: 'd2d4', classification: 'blunder' }] })
     await expect(page.getByRole('button', { name: 'Разобрать партию' })).toBeVisible()
     await expect(page.getByText('Позднее объяснение.')).toBeHidden()
   } finally {
@@ -69,7 +69,7 @@ test('late facts after undo cannot count against the replacement move', async ({
     await press(page.getByRole('button', { name: 'Сдаться', exact: true }))
     const saved = page.waitForRequest((r) => r.url().endsWith('/api/games') && r.method() === 'POST')
     await press(page.getByRole('button', { name: 'Да', exact: true }))
-    expect((await saved).postDataJSON().blunders).toBe(0)
+    expect((await saved).postDataJSON()).toMatchObject({ blunders: 0, errors: [] })
     await expect(page.getByText('Позднее объяснение.')).toBeHidden()
   } finally {
     release()
@@ -83,6 +83,10 @@ test('late facts belong to the abandoned game after a new game and navigation', 
   let release!: () => void
   const held = new Promise<void>((resolve) => { release = resolve })
   let first = true
+  let saves = 0
+  page.on('request', (r) => {
+    if (r.url().endsWith('/api/games') && r.method() === 'POST') saves++
+  })
   await page.route('**/api/coach/move', async (route) => {
     if (first) {
       first = false
@@ -98,12 +102,17 @@ test('late facts belong to the abandoned game after a new game and navigation', 
     await press(page.getByRole('button', { name: 'Начать', exact: true }))
     if (await page.getByRole('button', { name: 'Меню', exact: true }).isVisible()) await press(page.getByRole('button', { name: 'Меню', exact: true }))
     await press(page.getByRole('link', { name: 'Уроки', exact: true }))
-    const saved = page.waitForRequest((r) => r.url().endsWith('/api/games') && r.method() === 'POST')
-    release()
-    expect((await saved).postDataJSON().blunders).toBe(1)
-    await page.unrouteAll({ behavior: 'wait' })
     if (await page.getByRole('button', { name: 'Меню', exact: true }).isVisible()) await press(page.getByRole('button', { name: 'Меню', exact: true }))
     await press(page.getByRole('link', { name: 'Игра', exact: true }))
+    await press(page.getByRole('button', { name: 'Повторить сохранение' }))
+    const saved = page.waitForResponse((r) => r.url().endsWith('/api/games') && r.request().method() === 'POST')
+    release()
+    const response = await saved
+    expect(response.ok()).toBe(true)
+    expect(response.request().postDataJSON()).toMatchObject({ blunders: 1, errors: [{ ply: 1, best_uci: 'd2d4', classification: 'blunder' }] })
+    await expect(page.getByRole('button', { name: 'Повторить сохранение' })).toHaveCount(0)
+    expect(saves).toBe(1)
+    await page.unrouteAll({ behavior: 'wait' })
     await expect(moves(page)).toHaveCount(0)
     await expect(page.getByText('Позднее объяснение.')).toBeHidden()
   } finally {

@@ -76,7 +76,7 @@ export default function Puzzles() {
                 Подсказка
               </button>
             )}
-            {z.phase === 'failed' && (
+            {(z.phase === 'failed' || z.phase === 'play') && (
               <button type="button" onClick={z.showSolution}>
                 Показать решение
               </button>

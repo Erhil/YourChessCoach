@@ -10,9 +10,10 @@ from app.auth.deps import UserId
 from app.coach.classify import ORDER
 from app.coach.explain import explain_facts
 from app.coach.facts import build_facts
+from app.coach.templates import explain
 from app.db import Db
 from app.engines.pool import EngineUnavailableError
-from app.mistakes.routes import add_card
+from app.mistakes.events import GameError, record_game_errors, validate_game_moves
 from app.review.analysis import review_moves
 from app.security import ENGINE_HEAVY
 
@@ -27,6 +28,7 @@ class ReviewRequest(BaseModel):
     pgn: str | None = Field(None, max_length=20000)
     side: Literal["white", "black"] | None = None
     game_id: int | None = None
+    practice: bool = False
 
     @model_validator(mode="after")
     def _one_source(self) -> "ReviewRequest":
@@ -44,7 +46,9 @@ def parse_pgn(text: str) -> tuple[chess.Board, list[chess.Move]]:
         raise HTTPException(422, "PGN must contain at least one move")
     if len(moves) > MAX_PLIES:
         raise HTTPException(422, f"PGN is longer than {MAX_PLIES} plies")
-    return game.board(), moves
+    start = game.board()
+    validate_game_moves(start, moves)
+    return start, moves
 
 
 @router.post("/api/review", dependencies=ENGINE_HEAVY)
@@ -80,37 +84,43 @@ def review(body: ReviewRequest, request: Request, db: Db, user_id: UserId) -> di
                     "san": r["san"],
                     "classification": facts.classification,
                     "facts": facts,
-                    "explanation": explain_facts(facts, db, request.app.state.llm, settings),
+                    "explanation": (
+                        {"text": explain(facts), "source": "template", "model": None}
+                        if body.game_id is not None and body.practice
+                        else explain_facts(facts, db, request.app.state.llm, settings)
+                    ),
                 }
             )
         moments.sort(key=lambda m: m["ply"])
-        if body.game_id is not None:
-            for m in moments:
-                f = m["facts"]
-                if f.classification in ("mistake", "blunder") and f.best_move:
-                    motif = (f.motifs_missed or f.motifs_against or [None])[0]
-                    add_card(
-                        db,
-                        user_id,
-                        "game",
-                        f"{body.game_id}:{m['ply']}",
-                        f.fen_before,
-                        f.best_move.uci,
-                        f.classification,
-                        motif.kind if motif else None,
-                        f.player_move.uci,
-                    )
     except EngineUnavailableError as exc:
         raise HTTPException(503, str(exc)) from exc
     summary = {
         k: sum(1 for r in rows if r["color"] == side and r["classification"] == k) for k in BAD
     }
     if body.game_id is not None:
-        db.execute(
-            "UPDATE games SET blunders = ? WHERE id = ? AND user_id = ?",
-            (summary["blunder"], body.game_id, user_id),
-        )
-        db.commit()
+        errors = []
+        for m in moments:
+            f = m["facts"]
+            if f.classification in ("mistake", "blunder") and f.best_move:
+                motif = (f.motifs_missed or f.motifs_against or [None])[0]
+                errors.append(
+                    GameError(
+                        ply=m["ply"],
+                        best_uci=f.best_move.uci,
+                        classification=f.classification,
+                        motif=motif.kind if motif else None,
+                        best_line=f.best_line,
+                    )
+                )
+        with db:
+            db.execute("BEGIN IMMEDIATE")
+            first_review = db.execute(
+                "UPDATE games SET blunders = COALESCE(blunders, ?), mistakes_reviewed = 1"
+                " WHERE id = ? AND user_id = ? AND mistakes_reviewed = 0",
+                (summary["blunder"], body.game_id, user_id),
+            )
+            if first_review.rowcount == 1:
+                record_game_errors(db, user_id, body.game_id, "review", start, moves, side, errors)
     for r in rows:
         del r["drop"]
     return {"side": side, "moves": rows, "key_moments": moments, "summary": summary}

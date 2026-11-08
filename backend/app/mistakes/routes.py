@@ -134,7 +134,7 @@ def next_card(db: Db, user_id: UserId, tz: int | None = Tz) -> dict:
         played = row["played_uci"]
         card = {
             "id": row["id"],
-            "review_version": row["reviews"],
+            "review_version": row["review_version"],
             "fen": row["fen"],
             "side": "white" if board.turn == chess.WHITE else "black",
             "source": row["source"],
@@ -154,7 +154,7 @@ def answer(
     ).fetchone()
     if row is None:
         raise HTTPException(404, "Card not found")
-    if row["reviews"] != body.review_version or row["due_at"] > now_utc():
+    if row["review_version"] != body.review_version or row["due_at"] > now_utc():
         raise HTTPException(409, "Карточка уже отвечена или ещё не пришло время повторения")
     board, move = _board(row["fen"], body.uci)
     try:
@@ -176,7 +176,8 @@ def answer(
             raise HTTPException(409, "Дневной лимит повторений достигнут")
         updated = db.execute(
             "UPDATE mistakes SET streak = ?, due_at = ?, learned_at = ?, reviews = reviews + 1,"
-            " lapses = lapses + ? WHERE id = ? AND reviews = ? AND due_at <= ?",
+            " review_version = review_version + 1,"
+            " lapses = lapses + ? WHERE id = ? AND review_version = ? AND due_at <= ?",
             (
                 streak,
                 due_at,

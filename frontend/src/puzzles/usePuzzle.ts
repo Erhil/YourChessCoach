@@ -5,14 +5,16 @@ import {
   getNextPuzzle,
   getPuzzleRating,
   getPuzzleThemes,
+  type AttemptDetails,
   type AttemptResult,
   type Puzzle,
   type PuzzleTheme,
 } from '../api/client'
 import { getPuzzleOpenings, type PuzzleOpening } from '../api/openings'
+import { sessionLogin } from '../auth/session'
 import { lineArrows } from '../chess/arrows'
 import { splitUci, sleep, toUci } from '../chess/notation'
-import { enqueueAttempt, deliverAttempt, newAttemptId } from './resultQueue'
+import { enqueueAttempt, deliverAttempt, newAttemptId, type PendingAttempt } from './resultQueue'
 import { loadPuzzle, storePuzzle } from './puzzleStore'
 import type { Move } from '../components/Board'
 
@@ -25,6 +27,7 @@ const BLUE = 'rgb(20 120 220 / 45%)'
 const apply = (chess: Chess, uci: string) => chess.move(splitUci(uci))
 
 export function usePuzzle() {
+  const [login] = useState(sessionLogin)
   const [themes, setThemes] = useState<PuzzleTheme[]>([])
   const [initialTheme] = useState(() => new URLSearchParams(window.location.search).get('theme') ?? '')
   const [theme, setTheme] = useState(initialTheme)
@@ -42,6 +45,8 @@ export function usePuzzle() {
   const run = useRef(0) // a newer run cancels the older timers
   const hintsRef = useRef(0)
   const attemptId = useRef(newAttemptId())
+  const started = useRef(0)
+  const finished = useRef<PendingAttempt | null>(null)
 
   const base = useMemo(() => {
     const chess = new Chess(p?.fen)
@@ -59,19 +64,25 @@ export function usePuzzle() {
   const k = played.length - 1 // index of the next solution move
   const next = phase === 'play' ? p?.solution[k] : undefined
 
-  const finish = useCallback(async (id: string, solved: boolean) => {
+  const finish = async (id: string, solved: boolean, ply: number, uci: string | null, revealed = false) => {
+    if (sessionLogin() !== login) return
     const token = run.current
+    const prior = finished.current
+    const details: AttemptDetails = prior?.details
+      ? { ...prior.details, revealed }
+      : { ply, played_uci: uci, first_uci: hintsRef.current === 0 ? uci : null, revealed, elapsed_ms: Math.round(performance.now() - started.current) }
+    const entry = enqueueAttempt(id, solved, prior?.used_hint ?? (revealed || hintsRef.current > 0), attemptId.current, details)
+    finished.current = entry
     storePuzzle(null)
-    const entry = enqueueAttempt(id, solved, hintsRef.current > 0, attemptId.current)
     try {
       const r = await deliverAttempt(entry)
-      if (run.current !== token) return
+      if (run.current !== token || sessionLogin() !== login) return
       setResult(r)
       setRating(Math.round(r.rating_after))
     } catch {
       /* The global result queue shows the failure and offers retry. */
     }
-  }, [])
+  }
 
   const load = useCallback(async (th: string, op: string, keep = false) => {
     const t = ++run.current
@@ -81,12 +92,14 @@ export function usePuzzle() {
       const pz = (stored && stored.id !== exclude ? stored : null) || (await getNextPuzzle(th, op, exclude))
       if (run.current !== t) return
       attemptId.current = newAttemptId()
+      finished.current = null
       storePuzzle(pz, th, op)
       setP(pz)
       setPhase('opp')
       await sleep(600)
       if (run.current !== t) return
       setPlayed([pz.opponent_move])
+      started.current = performance.now()
       setPhase('play')
     } catch {
       if (run.current === t) setPhase('error')
@@ -127,12 +140,13 @@ export function usePuzzle() {
       return false
     }
     const uci = toUci(made)
+    const ply = k / 2 + 1
     const sol = p.solution
     const mate = chess.isCheckmate()
     if (uci !== sol[k] && !(k >= sol.length - 2 && mate)) {
       setWrong(uci)
       setPhase('failed')
-      void finish(p.id, false)
+      void finish(p.id, false, ply, uci)
       const token = run.current
       coachMove(base.fen(), uci).then(
         (r) => { if (run.current === token) setCoach(r.explanation ?? { text: NO_EXPLANATION }) },
@@ -145,7 +159,7 @@ export function usePuzzle() {
     setPlayed([...played, uci])
     if (mate || !reply) {
       setPhase('solved')
-      void finish(p.id, true)
+      void finish(p.id, true, ply, uci)
       return true
     }
     setPhase('opp')
@@ -154,7 +168,7 @@ export function usePuzzle() {
       setPlayed((pl) => [...pl, reply])
       if (k + 2 >= sol.length) {
         setPhase('solved')
-        void finish(p.id, true)
+        void finish(p.id, true, ply, uci)
       } else setPhase('play')
     })
     return true
@@ -166,10 +180,11 @@ export function usePuzzle() {
   }
 
   const showSolution = async () => {
-    if (!p) return
+    if (!p || (phase !== 'play' && phase !== 'failed')) return
     const t = ++run.current
     setWrong(null)
     setPhase('solution')
+    void finish(p.id, false, k / 2 + 1, null, true)
     for (const uci of p.solution.slice(k)) {
       await sleep(700)
       if (run.current !== t) return

@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from app.auth.deps import UserId
 from app.db import Db
+from app.mistakes.events import record_event
 from app.mistakes.routes import add_card
 from app.openings.names import ru_name
 from app.puzzles.rating import START_RATING, score, update_rating
@@ -40,10 +41,21 @@ def get_puzzles_db(request: Request) -> Iterator[sqlite3.Connection]:
 PuzzlesDb = Annotated[sqlite3.Connection, Depends(get_puzzles_db)]
 
 
+class AttemptDetails(BaseModel):
+    # One-based learner turn, after the opponent's initial move.
+    ply: int = Field(ge=1)
+    played_uci: str | None = Field(max_length=10)
+    first_uci: str | None = Field(max_length=10)
+    revealed: bool
+    elapsed_ms: int = Field(ge=0, le=2**53 - 1)
+
+
 class AttemptIn(BaseModel):
     client_id: str | None = Field(None, min_length=1, max_length=100)
+    expected_login: str | None = Field(None, max_length=100)
     solved: bool
     used_hint: bool = False
+    details: AttemptDetails | None = None
 
 
 def _theme_keys(row: sqlite3.Row) -> list[str]:
@@ -159,8 +171,50 @@ def next_puzzle(
     raise HTTPException(404, "Подходящих задач не нашлось")
 
 
+def _attempt_position(
+    row: sqlite3.Row, details: AttemptDetails, solved: bool
+) -> tuple[chess.Board, list[str]]:
+    moves = row["moves"].split()
+    index = 2 * details.ply - 1
+    if index >= len(moves):
+        raise HTTPException(422, "Puzzle learner turn is outside the solution")
+    board = chess.Board(row["fen"])
+    try:
+        for uci in moves[:index]:
+            board.push_uci(uci)
+        line = board.copy(stack=False)
+        for uci in moves[index:]:
+            line.push_uci(uci)
+        if details.first_uci is not None and not board.parse_uci(details.first_uci):
+            raise ValueError("null first move")
+        if details.played_uci is None:
+            if solved or not details.revealed or details.first_uci is not None:
+                raise ValueError("only a direct reveal can omit the played move")
+        else:
+            played = board.parse_uci(details.played_uci)
+            if not played:
+                raise ValueError("null played move")
+            after = board.copy(stack=False)
+            after.push(played)
+            is_mate = after.is_checkmate()
+            matches = played.uci() == moves[index]
+            accepted = matches or (is_mate and index >= len(moves) - 2)
+            terminal = is_mate or index + 2 >= len(moves)
+            if (solved and not (accepted and terminal)) or (not solved and accepted):
+                raise ValueError("played move does not match the result")
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid puzzle attempt details") from exc
+    return board, moves[index:]
+
+
 @router.post("/{puzzle_id}/attempt")
 def attempt(puzzle_id: str, body: AttemptIn, db: Db, user_id: UserId, pdb: PuzzlesDb) -> dict:
+    if body.expected_login is not None:
+        owner = db.execute("SELECT login FROM users WHERE id = ?", (user_id,)).fetchone()
+        if owner["login"] != body.expected_login:
+            raise HTTPException(
+                409, "Профиль изменился. Войдите в исходный профиль для сохранения."
+            )
     row = pdb.execute("SELECT * FROM puzzles WHERE id = ?", (puzzle_id,)).fetchone()
     if row is None:
         raise HTTPException(404, "Задача не найдена")
@@ -168,16 +222,35 @@ def attempt(puzzle_id: str, body: AttemptIn, db: Db, user_id: UserId, pdb: Puzzl
     scopes = ["overall", *(k for k in _theme_keys(row) if k in OFFERED)]
     new: dict[str, float] = {}
     before = after = 0.0
+    details = body.details
+    details_json = details.model_dump_json() if details is not None else None
     with db:
         # Serialize the receipt check and all rating writes across connections.
         db.execute("BEGIN IMMEDIATE")
         if body.client_id:
             receipt = db.execute(
-                "SELECT * FROM puzzle_receipts WHERE user_id = ? AND client_id = ?",
+                "SELECT r.*, a.details FROM puzzle_receipts r"
+                " LEFT JOIN puzzle_attempts a ON a.id = r.attempt_id"
+                " WHERE r.user_id = ? AND r.client_id = ?",
                 (user_id, body.client_id),
             ).fetchone()
             if receipt:
-                if (receipt["puzzle_id"], receipt["solved"], receipt["used_hint"]) != (
+                prior = (
+                    AttemptDetails.model_validate_json(receipt["details"])
+                    if receipt["details"] is not None
+                    else None
+                )
+                can_annotate = (
+                    prior is not None and not body.solved and prior.played_uci is not None
+                )
+                same_details = details == prior
+                if can_annotate and details is not None:
+                    same_details = details.model_copy(update={"revealed": prior.revealed}) == prior
+                if not same_details or (
+                    receipt["puzzle_id"],
+                    receipt["solved"],
+                    receipt["used_hint"],
+                ) != (
                     puzzle_id,
                     body.solved,
                     body.used_hint,
@@ -185,7 +258,13 @@ def attempt(puzzle_id: str, body: AttemptIn, db: Db, user_id: UserId, pdb: Puzzl
                     raise HTTPException(
                         409, "Этот идентификатор уже использован для другого результата"
                     )
+                if can_annotate and details is not None and details.revealed and not prior.revealed:
+                    db.execute(
+                        "UPDATE puzzle_attempts SET details = ? WHERE id = ?",
+                        (details_json, receipt["attempt_id"]),
+                    )
                 return json.loads(receipt["response"])
+        position = _attempt_position(row, details, body.solved) if details else None
         for scope in scopes:
             old, n = _scope_rating(db, user_id, scope)
             new[scope] = update_rating(old, n, row["rating"], result)
@@ -196,10 +275,19 @@ def attempt(puzzle_id: str, body: AttemptIn, db: Db, user_id: UserId, pdb: Puzzl
             )
             if scope == "overall":
                 before, after = old, new[scope]
-        db.execute(
+        attempt_row = db.execute(
             "INSERT INTO puzzle_attempts (user_id, puzzle_id, solved, used_hint, puzzle_rating,"
-            " rating_before, rating_after) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (user_id, puzzle_id, body.solved, body.used_hint, row["rating"], before, after),
+            " rating_before, rating_after, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                user_id,
+                puzzle_id,
+                body.solved,
+                body.used_hint,
+                row["rating"],
+                before,
+                after,
+                details_json,
+            ),
         )
         response = {
             "rating_before": round(before),
@@ -212,14 +300,32 @@ def attempt(puzzle_id: str, body: AttemptIn, db: Db, user_id: UserId, pdb: Puzzl
             ],
         }
         if not body.solved:
-            moves = row["moves"].split()
-            board = chess.Board(row["fen"])
-            board.push_uci(moves[0])
             motif = next((k for k in _theme_keys(row) if k in OFFERED), None)
-            add_card(db, user_id, "puzzle", puzzle_id, board.fen(), moves[1], None, motif)
+            if details is not None and position is not None:
+                board, continuation = position
+                record_event(
+                    db,
+                    user_id,
+                    "puzzle",
+                    attempt_row.lastrowid,
+                    details.ply,
+                    board,
+                    details.played_uci,
+                    continuation,
+                    None,
+                    motif,
+                    puzzle_id=puzzle_id,
+                )
+            else:
+                moves = row["moves"].split()
+                board = chess.Board(row["fen"])
+                board.push_uci(moves[0])
+                add_card(db, user_id, "puzzle", puzzle_id, board.fen(), moves[1], None, motif)
         if body.client_id:
             db.execute(
-                "INSERT INTO puzzle_receipts VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO puzzle_receipts"
+                " (user_id, client_id, puzzle_id, solved, used_hint, response, attempt_id)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     user_id,
                     body.client_id,
@@ -227,6 +333,7 @@ def attempt(puzzle_id: str, body: AttemptIn, db: Db, user_id: UserId, pdb: Puzzl
                     body.solved,
                     body.used_hint,
                     json.dumps(response, ensure_ascii=False),
+                    attempt_row.lastrowid,
                 ),
             )
     return response

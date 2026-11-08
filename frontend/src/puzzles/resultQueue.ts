@@ -1,4 +1,4 @@
-import { sendAttempt, type AttemptResult } from '../api/client'
+import { sendAttempt, type AttemptDetails, type AttemptResult } from '../api/client'
 import { sessionLogin } from '../auth/session'
 
 export interface PendingAttempt {
@@ -7,9 +7,10 @@ export interface PendingAttempt {
   puzzle: string
   solved: boolean
   used_hint: boolean
+  details?: AttemptDetails
 }
 const memory = new Map<string, PendingAttempt[]>()
-const active = new Map<string, Promise<AttemptResult>>()
+const active = new Map<string, { entry: PendingAttempt; request: Promise<AttemptResult> }>()
 const failures = new Set<string>()
 const unavailable = new Set<string>()
 export const RESULT_QUEUE_EVENT = 'puzzle-results-changed'
@@ -39,28 +40,36 @@ function write(login: string, entries: PendingAttempt[]) {
   notify()
 }
 
-export function newAttemptId() {
+export function newAttemptId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-export function enqueueAttempt(puzzle: string, solved: boolean, used_hint: boolean, client_id = newAttemptId()) {
+export function enqueueAttempt(puzzle: string, solved: boolean, used_hint: boolean, client_id = newAttemptId(), details?: AttemptDetails) {
   const login = sessionLogin()
-  const entry = { login, client_id, puzzle, solved, used_hint }
   const entries = pendingAttempts(login)
   const existing = entries.find((e) => e.client_id === client_id)
-  if (existing) return existing
-  write(login, [...entries, entry])
+  if (existing && (!details?.revealed || !existing.details || existing.details.revealed)) return existing
+  const entry = existing
+    ? { ...existing, details: { ...existing.details!, revealed: true } }
+    : { login, client_id, puzzle, solved, used_hint, details }
+  write(login, existing ? entries.map((e) => e === existing ? entry : e) : [...entries, entry])
   return entry
 }
 
 export function deliverAttempt(entry: PendingAttempt): Promise<AttemptResult> {
   const id = `${entry.login}:${entry.client_id}`
-  const running = active.get(id)
-  if (running) return running
   if (sessionLogin() !== entry.login) return Promise.reject(new Error('Session changed'))
-  const request = sendAttempt(entry.puzzle, entry.solved, entry.used_hint, entry.client_id).then((result) => {
+  const running = active.get(id)
+  if (running) {
+    if (entry.details?.revealed && !running.entry.details?.revealed) {
+      return running.request.catch(() => {}).then(() => deliverAttempt(entry))
+    }
+    return running.request
+  }
+  const request = sendAttempt(entry.puzzle, entry.solved, entry.used_hint, entry.client_id, entry.details, entry.login).then((result) => {
     // Read the latest queue: a delayed response must preserve later results.
-    write(entry.login, pendingAttempts(entry.login).filter((e) => e.client_id !== entry.client_id))
+    write(entry.login, pendingAttempts(entry.login).filter((e) =>
+      e.client_id !== entry.client_id || (e.details?.revealed && !entry.details?.revealed)))
     failures.delete(id)
     return result
   }).catch((error: unknown) => {
@@ -70,7 +79,7 @@ export function deliverAttempt(entry: PendingAttempt): Promise<AttemptResult> {
     active.delete(id)
     notify()
   })
-  active.set(id, request)
+  active.set(id, { entry, request })
   return request
 }
 

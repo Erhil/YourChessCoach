@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from dataclasses import replace
 
@@ -223,6 +224,47 @@ def test_attempt_retry_is_idempotent_and_conflicts_are_rejected(client):
     assert client.post(url, json={**body, "solved": False}).status_code == 409
     assert client.post("/api/puzzles/p01/attempt", json=body).status_code == 409
     assert client.get("/api/puzzles/rating").json()["attempts"] == 2
+
+
+def test_late_puzzle_error_is_exact_after_restart_and_receipt_only_adds_reveal(client):
+    settings = client.app.state.settings
+    prefix = "e2e4 e7e5 g1f3 b8c6 f1c4"
+    with sqlite3.connect(settings.puzzles_db_path) as db:
+        db.execute("UPDATE puzzles SET moves = ? WHERE id = 'p00'", (prefix + " g8f6",))
+    url = "/api/puzzles/p00/attempt"
+    details = {
+        "ply": 3,
+        "played_uci": "a7a6",
+        "first_uci": "a7a6",
+        "revealed": False,
+        "elapsed_ms": 123,
+    }
+    body = {"client_id": "late", "solved": False, "expected_login": "tester", "details": details}
+    assert client.post(url, json={**body, "expected_login": "other"}).status_code == 409
+    for wrong in ({"ply": 4}, {"played_uci": "g8f6"}, {"played_uci": "g1f3"}):
+        assert client.post(url, json={**body, "details": {**details, **wrong}}).status_code == 422
+    first = client.post(url, json=body)
+    assert first.status_code == 200, first.text
+    restarted = TestClient(create_app(settings))
+    reveal = {**body, "details": {**details, "revealed": True}}
+    assert restarted.post(url, json=reveal).json() == first.json()
+    assert restarted.post(url, json=body).json() == first.json()
+    conflict = {**body, "details": {**details, "elapsed_ms": 124}}
+    assert restarted.post(url, json=conflict).status_code == 409
+    assert restarted.get("/api/puzzles/rating").json()["attempts"] == 1
+    board = chess.Board()
+    for uci in prefix.split():
+        board.push_uci(uci)
+    card = restarted.get("/api/mistakes/next").json()["card"]
+    assert card["fen"] == board.fen() and card["played_san"] == "a6"
+    with sqlite3.connect(settings.app_db_path) as db:
+        assert db.execute(
+            "SELECT ply, prefix_uci, played_uci, best_uci, continuation_uci FROM mistake_events"
+        ).fetchall() == [(3, prefix, "a7a6", "g8f6", "g8f6")]
+        assert json.loads(db.execute("SELECT details FROM puzzle_attempts").fetchone()[0]) == {
+            **details,
+            "revealed": True,
+        }
 
 
 def test_failed_attempt_and_card_commit_together_or_retry(client):

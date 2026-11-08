@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 from dataclasses import replace
 
 import pytest
@@ -169,3 +170,137 @@ def test_retry_save_returns_original_game_and_is_scoped_to_user(client):
 def test_partial_illegal_pgn_is_rejected(client):
     assert client.post("/api/games", json=body("1. e4 e5 2. Ke5 *")).status_code == 422
     assert client.get("/api/games").json() == []
+
+
+def test_retry_merges_late_analysis_atomically(client, db_path):
+    payload = body(client_id="late-analysis")
+    first = client.post("/api/games", json=payload)
+    assert first.status_code == 201
+    gid = first.json()["id"]
+    error = {"ply": 3, "best_uci": "f1c4", "classification": "blunder"}
+    late = {**payload, "blunders": 1, "errors": [error]}
+
+    # The first valid event and blunder update must roll back with the malformed event.
+    invalid = {
+        **late,
+        "errors": [{**error, "ply": 1, "best_uci": "d2d4"}, {**error, "best_uci": "a1a8"}],
+    }
+    assert client.post("/api/games", json=invalid).status_code == 422
+    conflict = {**late, "pgn": "1. d4 d5 2. Nf3 Nc6 *"}
+    assert client.post("/api/games", json=conflict).status_code == 409
+    with closing(connect(db_path)) as db:
+        assert tuple(db.execute("SELECT pgn, blunders FROM games").fetchone()) == (PGN, None)
+        assert db.execute("SELECT COUNT(*) FROM mistake_events").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM mistakes").fetchone()[0] == 0
+
+    for delivery in (late, late, payload, {**late, "blunders": 2}):
+        retry = client.post("/api/games", json=delivery)
+        assert retry.status_code == 201 and retry.json() == first.json()
+    with closing(connect(db_path)) as db:
+        assert tuple(db.execute("SELECT pgn, blunders FROM games").fetchone()) == (PGN, 1)
+        events = db.execute(
+            "SELECT game_id, ply, origin, prefix_uci, played_uci, best_uci FROM mistake_events"
+        ).fetchall()
+        assert [tuple(event) for event in events] == [(gid, 3, "play", "e2e4 e7e5", "g1f3", "f1c4")]
+
+
+def test_game_save_rejects_null_move_before_an_error(client):
+    error = {"ply": 3, "best_uci": "e2e4", "classification": "blunder"}
+    pgn = "1. -- e5 2. Nf3 Nc6 *"
+    assert client.post("/api/games", json=body(pgn, errors=[error])).status_code == 422
+    assert client.post("/api/games", json=body(pgn)).status_code == 422
+    assert client.get("/api/games").json() == []
+    assert client.get("/api/mistakes/stats").json()["total"] == 0
+
+
+def test_game_error_accepts_legal_black_to_move_fen_start(client, db_path):
+    start = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+    pgn = f'[SetUp "1"]\n[FEN "{start}"]\n\n1... e5 2. Nf3 *'
+    errors = [{"ply": 1, "best_uci": "c7c5", "classification": "mistake"}]
+    response = client.post("/api/games", json=body(pgn, player_color="black", errors=errors))
+    assert response.status_code == 201, response.text
+    with closing(connect(db_path)) as db:
+        event = db.execute(
+            "SELECT start_fen, prefix_uci, played_uci FROM mistake_events"
+        ).fetchone()
+        assert tuple(event) == (start, "", "e7e5")
+
+
+def test_late_error_for_older_game_keeps_newer_occurrence_review_history(client, db_path):
+    old = body(client_id="older-game")
+    first = client.post("/api/games", json=old)
+    assert first.status_code == 201
+    errors = [{"ply": 3, "best_uci": "f1c4", "classification": "mistake"}]
+    assert (
+        client.post(
+            "/api/games", json={**old, "client_id": "newer-game", "errors": errors}
+        ).status_code
+        == 201
+    )
+    card = client.get("/api/mistakes/next").json()["card"]
+    with closing(connect(db_path)) as db, db:
+        db.execute(
+            "UPDATE mistakes SET reviews = 3, streak = 3, review_version = 3,"
+            " learned_at = '2026-01-01', due_at = '2099-01-01' WHERE id = ?",
+            (card["id"],),
+        )
+    retry = client.post("/api/games", json={**old, "errors": errors})
+    assert retry.status_code == 201 and retry.json() == first.json()
+    with closing(connect(db_path)) as db:
+        events = db.execute("SELECT card_id FROM mistake_events").fetchall()
+        assert [event["card_id"] for event in events] == [card["id"]] * 2
+        assert tuple(
+            db.execute(
+                "SELECT reviews, streak, review_version, learned_at, due_at FROM mistakes"
+            ).fetchone()
+        ) == (3, 3, 3, "2026-01-01", "2099-01-01")
+
+
+def test_new_game_error_reopens_same_card_without_changing_review_history(client, db_path):
+    payload = body(
+        client_id="first-game",
+        errors=[{"ply": 3, "best_uci": "f1c4", "classification": "mistake"}],
+    )
+    first = client.post("/api/games", json=payload)
+    assert first.status_code == 201
+    card = client.get("/api/mistakes/next").json()["card"]
+    assert card["played_san"] == "Nf3"
+    with closing(connect(db_path)) as db, db:
+        db.execute(
+            "UPDATE mistakes SET reviews = 5, lapses = 1, review_version = 5, streak = 3,"
+            " learned_at = '2026-01-01', due_at = '2099-01-01' WHERE id = ?",
+            (card["id"],),
+        )
+    assert client.post("/api/games", json=payload).json() == first.json()
+    assert client.get("/api/mistakes/stats").json() == {"total": 1, "learned": 1, "due": 0}
+    second = client.post("/api/games", json={**payload, "client_id": "second-game"})
+    assert second.status_code == 201 and second.json() != first.json()
+    reopened = client.get("/api/mistakes/next").json()["card"]
+    assert reopened["id"] == card["id"] and reopened["review_version"] == 6
+    stale = client.post(
+        f"/api/mistakes/{card['id']}/answer", json={"uci": "f1c4", "review_version": 5}
+    )
+    assert stale.status_code == 409
+    with closing(connect(db_path)) as db:
+        assert tuple(db.execute("SELECT reviews, lapses, streak FROM mistakes").fetchone()) == (
+            5,
+            1,
+            0,
+        )
+        assert db.execute("SELECT COUNT(*) FROM mistake_events").fetchone()[0] == 2
+
+
+def test_game_errors_require_legal_moves_by_owner_and_roll_back_whole_save(client):
+    valid = {"ply": 1, "best_uci": "d2d4", "classification": "blunder"}
+    for invalid in (
+        {**valid, "ply": 2, "best_uci": "d7d5"},
+        {**valid, "ply": 3, "best_uci": "f1b7"},
+        {**valid, "ply": 5},
+    ):
+        assert client.post("/api/games", json=body(errors=[valid, invalid])).status_code == 422
+    assert (
+        client.post("/api/games", json=body(expected_login="other", errors=[valid])).status_code
+        == 409
+    )
+    assert client.get("/api/games").json() == []
+    assert client.get("/api/mistakes/stats").json()["total"] == 0

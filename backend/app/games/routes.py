@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.auth.deps import UserId
 from app.db import TRAINING_GAME, Db
+from app.mistakes.events import GameError, record_game_errors, validate_game_moves
 
 router = APIRouter(prefix="/api/games")
 
@@ -38,6 +39,7 @@ class GameIn(BaseModel):
     # Takebacks and coach hints; old clients do not send them.
     takebacks: int = Field(0, ge=0, le=MAX_PLIES)
     hints: int = Field(0, ge=0, le=MAX_PLIES)
+    errors: list[GameError] = Field(default_factory=list, max_length=MAX_PLIES)
 
 
 def player_move_count(plies: int, player_color: str, initial_turn: chess.Color) -> int:
@@ -55,40 +57,54 @@ def create_game(body: GameIn, db: Db, user_id: UserId) -> dict:
     game = chess.pgn.read_game(io.StringIO(body.pgn))
     if game is None or game.errors:
         raise HTTPException(422, "PGN does not parse")
-    moves = len(list(game.mainline_moves()))
+    mainline = list(game.mainline_moves())
+    moves = len(mainline)
     if moves == 0:
         raise HTTPException(422, "PGN must contain at least one move")
     if moves > MAX_PLIES:
         raise HTTPException(422, f"PGN is longer than {MAX_PLIES} plies")
-    player_moves = player_move_count(moves, body.player_color, game.board().turn)
+    start = game.board()
+    validate_game_moves(start, mainline)
+    player_moves = player_move_count(moves, body.player_color, start.turn)
     if body.blunders is not None and body.blunders > player_moves:
         raise HTTPException(422, "Blunders exceed player moves")
+    snapshot = (
+        body.player_color,
+        body.level,
+        body.result,
+        body.termination,
+        body.pgn,
+        moves,
+        body.takebacks,
+        body.hints,
+    )
     with db:
+        # The insert acquires the write lock before we inspect an existing game.
         cur = db.execute(
             "INSERT INTO games (user_id, player_color, level, result, termination, pgn, moves_count,"
-            " blunders, takebacks, hints, client_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            " takebacks, hints, blunders, client_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             " ON CONFLICT(user_id, client_id) DO NOTHING",
-            (
-                user_id,
-                body.player_color,
-                body.level,
-                body.result,
-                body.termination,
-                body.pgn,
-                moves,
-                body.blunders,
-                body.takebacks,
-                body.hints,
-                body.client_id,
-            ),
+            (user_id, *snapshot, body.blunders, body.client_id),
         )
-    if body.client_id:
-        row = db.execute(
-            "SELECT id FROM games WHERE user_id = ? AND client_id = ?",
-            (user_id, body.client_id),
-        ).fetchone()
-        return {"id": row["id"]}
-    return {"id": cur.lastrowid}
+        game_id = cur.lastrowid
+        if cur.rowcount == 0:
+            row = db.execute(
+                "SELECT id, player_color, level, result, termination, pgn, moves_count, takebacks,"
+                " hints FROM games WHERE user_id = ? AND client_id = ?",
+                (user_id, body.client_id),
+            ).fetchone()
+            if tuple(row)[1:] != snapshot:
+                raise HTTPException(409, "Другая партия уже сохранена с этим идентификатором.")
+            game_id = row["id"]
+            if body.blunders is not None:
+                db.execute(
+                    "UPDATE games SET blunders = ? WHERE id = ? AND blunders IS NULL",
+                    (body.blunders, game_id),
+                )
+        record_game_errors(
+            db, user_id, game_id, "play", start, mainline, body.player_color, body.errors
+        )
+    return {"id": game_id}
 
 
 @router.get("")

@@ -239,6 +239,57 @@ MIGRATIONS: list[str] = [
         '+' || (7 + id % 54) || ' days')
     WHERE learned_at IS NOT NULL;
     """,
+    """
+    ALTER TABLE mistakes ADD COLUMN review_version INTEGER NOT NULL DEFAULT 0;
+    UPDATE mistakes SET review_version = reviews;
+    ALTER TABLE games ADD COLUMN mistakes_reviewed INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE puzzle_attempts ADD COLUMN details TEXT;
+    ALTER TABLE puzzle_receipts ADD COLUMN attempt_id INTEGER REFERENCES puzzle_attempts(id);
+    CREATE TABLE mistake_events (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        game_id INTEGER REFERENCES games(id),
+        attempt_id INTEGER REFERENCES puzzle_attempts(id),
+        ply INTEGER NOT NULL CHECK (ply > 0),
+        card_id INTEGER NOT NULL REFERENCES mistakes(id),
+        origin TEXT NOT NULL CHECK (origin IN ('play', 'review', 'puzzle')),
+        start_fen TEXT NOT NULL,
+        fen TEXT NOT NULL,
+        prefix_uci TEXT NOT NULL,
+        played_uci TEXT,
+        best_uci TEXT NOT NULL,
+        continuation_uci TEXT NOT NULL,
+        classification TEXT,
+        motif TEXT,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        CHECK ((game_id IS NULL) != (attempt_id IS NULL)),
+        UNIQUE (user_id, game_id, ply),
+        UNIQUE (user_id, attempt_id, ply)
+    );
+    CREATE INDEX mistake_events_card ON mistake_events(card_id);
+    """,
+    """
+    CREATE TABLE training_sessions (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        kind TEXT NOT NULL CHECK (kind IN ('practice', 'delayed')),
+        version INTEGER NOT NULL DEFAULT 1,
+        anchor TEXT,
+        finished_at REAL,
+        snapshot TEXT NOT NULL,
+        UNIQUE (user_id, anchor)
+    );
+    CREATE INDEX training_sessions_user ON training_sessions(user_id, id);
+    CREATE UNIQUE INDEX training_sessions_active ON training_sessions(user_id)
+        WHERE finished_at IS NULL;
+    CREATE TABLE training_receipts (
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        client_id TEXT NOT NULL,
+        session_id INTEGER NOT NULL REFERENCES training_sessions(id),
+        request TEXT NOT NULL,
+        PRIMARY KEY (user_id, client_id)
+    );
+    """,
 ]
 
 # A training game (takebacks or hints): it does not count in wins, losses and game achievements.

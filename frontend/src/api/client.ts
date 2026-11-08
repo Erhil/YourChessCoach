@@ -34,6 +34,13 @@ export interface Analysis {
   depth: number
   lines: EvalLine[]
 }
+export interface GameError {
+  ply: number
+  best_uci: string
+  best_line?: string[]
+  classification: 'mistake' | 'blunder'
+  motif?: string
+}
 export interface GameRecord {
   expected_login?: string
   client_id?: string
@@ -47,6 +54,7 @@ export interface GameRecord {
   /** A game with a takeback or a hint is a training game: it does not count in wins. */
   takebacks?: number
   hints?: number
+  errors?: GameError[]
 }
 
 export const getOpponentLevels = () => call<OpponentLevel[]>('/api/opponent/levels')
@@ -79,6 +87,14 @@ export interface AttemptResult {
   rating_after: number
   delta: number
 }
+export interface AttemptDetails {
+  /** One-based learner turn, starting after the puzzle's first opponent move. */
+  ply: number
+  played_uci: string | null
+  first_uci: string | null
+  revealed: boolean
+  elapsed_ms: number
+}
 
 export const getPuzzleThemes = () => call<PuzzleTheme[]>('/api/puzzles/themes')
 export const getNextPuzzle = (theme: string, opening = '', exclude = '') => {
@@ -89,8 +105,8 @@ export const getNextPuzzle = (theme: string, opening = '', exclude = '') => {
   return call<Puzzle>(`/api/puzzles/next${q.size ? `?${q}` : ''}`)
 }
 export const getPuzzleRating = () => call<{ overall: number }>('/api/puzzles/rating')
-export const sendAttempt = signalled((id: string, solved: boolean, used_hint: boolean, client_id?: string) =>
-  call<AttemptResult>(`/api/puzzles/${id}/attempt`, { solved, used_hint, client_id }),
+export const sendAttempt = signalled((id: string, solved: boolean, used_hint: boolean, client_id?: string, details?: AttemptDetails, expected_login?: string) =>
+  call<AttemptResult>(`/api/puzzles/${id}/attempt`, { solved, used_hint, client_id, details, expected_login }),
 )
 export interface CoachResult {
   facts: {

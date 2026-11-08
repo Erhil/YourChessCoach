@@ -27,7 +27,8 @@
   flex-wrap: wrap;
   gap: 0 16px;
 }
-.layout {
+.layout,
+.practice {
   display: grid;
   gap: 16px;
   grid-template-columns: minmax(0, 1fr);
@@ -53,11 +54,28 @@
 .moments h3 {
   margin: 12px 0 4px;
 }
+.practice {
+  row-gap: 0;
+}
+.practice > button,
+.practice > p {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+.practiceFeedback {
+  min-width: 0;
+}
+.practice p,
+.practice > button,
+.practice .row {
+  margin-block: 8px;
+}
 @media (min-width: 900px) {
   .input {
     grid-template-columns: 1fr 1fr;
   }
-  .layout {
+  .layout,
+  .practice {
     grid-template-columns: minmax(0, 480px) minmax(260px, 1fr);
     align-items: start;
   }

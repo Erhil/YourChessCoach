@@ -55,20 +55,22 @@ test('with icons off and help level 1: no badge, no note, the blunder still goes
     }),
   )
   await page.route('**/api/openings/name', (r) => r.fulfill({ json: null }))
-  await page.route('**/api/mistakes', (r) => r.fulfill({ json: { id: 1, created: true } }))
+  await page.route('**/api/games', (r) => r.fulfill({ json: { id: 1 } }))
   await page.goto('/settings')
   await page.getByLabel('Помощь тренера').selectOption('1')
   await press(page.getByLabel('Значки качества хода'))
   await page.goto('/play')
   await page.getByLabel('Уровень').selectOption('800')
   await press(page.getByRole('button', { name: 'Начать' }))
-  const sent = page.waitForRequest((r) => r.url().endsWith('/api/mistakes') && r.method() === 'POST')
   await press(page.locator('[data-square="e2"]'))
   await press(page.locator('[data-square="e4"]'))
-  await sent
   await expect(moves(page)).toHaveCount(2, { timeout: 15_000 })
   await expect(page.locator('[data-quality]')).toHaveCount(0)
   await expect(page.getByText(NOTE)).toBeHidden()
+  await press(page.getByRole('button', { name: 'Сдаться', exact: true }))
+  const sent = page.waitForRequest((r) => r.url().endsWith('/api/games') && r.method() === 'POST')
+  await press(page.getByRole('button', { name: 'Да', exact: true }))
+  expect((await sent).postDataJSON().errors).toEqual([{ ply: 1, best_uci: 'd2d4', classification: 'blunder' }])
 })
 
 test('help level 1 with icons on: the badge shows, no note', async ({ page, hasTouch }) => {

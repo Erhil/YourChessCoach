@@ -190,8 +190,13 @@ test.describe('mistakes deck', () => {
   })
 })
 
-test('Play adds a blunder to the deck', async ({ page, hasTouch }) => {
+test('saving a game adds the blunder to the deck once', async ({ page, hasTouch, playwright, baseURL, context }) => {
   const press = (l: Locator) => (hasTouch ? l.tap() : l.click())
+  const admin = await adminApi(playwright.request, baseURL!)
+  const user = await userApi(playwright.request, baseURL!, admin, 'play-card')
+  await context.addCookies(await user.ctx.cookies())
+  await user.ctx.dispose()
+  await admin.dispose()
   await page.route('**/api/coach/move', (r) =>
     r.fulfill({
       json: {
@@ -200,14 +205,17 @@ test('Play adds a blunder to the deck', async ({ page, hasTouch }) => {
       },
     }),
   )
-  await page.route('**/api/mistakes', (r) => r.fulfill({ json: { id: 1, created: true } }))
   await page.goto('/play')
   await page.getByLabel('Цвет').selectOption({ label: 'Белые' })
   await page.getByLabel('Уровень').selectOption('800')
   await press(page.getByRole('button', { name: 'Начать' }))
-  const sent = page.waitForRequest((r) => r.url().endsWith('/api/mistakes') && r.method() === 'POST')
   await press(page.locator('[data-square="e2"]'))
   await press(page.locator('[data-square="e4"]'))
-  const body = (await sent).postDataJSON() as { best_uci: string; played_uci: string; classification: string }
-  expect(body).toMatchObject({ best_uci: 'd2d4', played_uci: 'e2e4', classification: 'blunder' })
+  await expect(page.getByText('Вы подставили пешку.')).toBeVisible()
+  expect(await (await page.request.get('/api/mistakes/stats')).json()).toMatchObject({ total: 0 })
+  await press(page.getByRole('button', { name: 'Сдаться', exact: true }))
+  await press(page.getByRole('button', { name: 'Да', exact: true }))
+  await expect(page.getByRole('button', { name: 'Разобрать партию' })).toBeVisible()
+  const next = await (await page.request.get('/api/mistakes/next')).json()
+  expect(next).toMatchObject({ due: 1, card: { played_san: 'e4', classification: 'blunder' } })
 })

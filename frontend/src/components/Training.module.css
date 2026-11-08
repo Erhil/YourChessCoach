@@ -1,0 +1,21 @@
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 8px;
+}
+.exercise {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.board {
+  width: 100%;
+  max-width: 480px;
+}
+@media (min-width: 900px) {
+  .exercise {
+    grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
+    align-items: start;
+  }
+}

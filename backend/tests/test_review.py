@@ -24,6 +24,7 @@ def client():
 def test_bad_pgn_is_422(client):
     assert client.post("/api/review", json={"pgn": "not a pgn"}).status_code == 422
     assert client.post("/api/review", json={"pgn": "1. e4 e5 2. Ke5"}).status_code == 422
+    assert client.post("/api/review", json={"pgn": "1. -- e5 2. Nf3 Nc6 *"}).status_code == 422
     assert client.post("/api/review", json={}).status_code == 422
 
 
@@ -132,9 +133,15 @@ def test_saved_review_counts_all_player_blunders_not_cards(monkeypatch, tmp_path
     cfg = replace(settings, app_db_path=tmp_path / "review.db")
     with TestClient(create_app(cfg)) as c:
         c.app.state.pool = Pool()
-        gid = c.post(
-            "/api/games", json={"pgn": pgn, "player_color": "white", "result": "*"}
-        ).json()["id"]
+        best = c.app.state.pool.analyse(chess.Board(), 1)[1][0]["pv_uci"][0]
+        payload = {
+            "client_id": "saved-review",
+            "pgn": pgn,
+            "player_color": "white",
+            "result": "*",
+            "errors": [{"ply": 1, "best_uci": best, "classification": "blunder"}],
+        }
+        gid = c.post("/api/games", json=payload).json()["id"]
         db = connect(cfg.app_db_path)
         with db:
             db.execute("UPDATE games SET created_at = '2026-10-13T00:00:00Z' WHERE id = ?", (gid,))
@@ -147,6 +154,33 @@ def test_saved_review_counts_all_player_blunders_not_cards(monkeypatch, tmp_path
                 "SELECT blunders, created_at FROM games WHERE id = ?", (gid,)
             ).fetchone()
             assert tuple(row) == (7, "2026-10-13T00:00:00Z")
+            events = db.execute(
+                "SELECT ply, origin FROM mistake_events WHERE game_id = ? ORDER BY ply", (gid,)
+            ).fetchall()
+            assert len(events) == 5 and tuple(events[0]) == (1, "play")
+        reviewed = db.execute(
+            "SELECT ply, best_uci FROM mistake_events WHERE game_id = ? AND origin = 'review'",
+            (gid,),
+        ).fetchone()
+        retry = c.post(
+            "/api/games",
+            json={
+                **payload,
+                "blunders": 1,
+                "errors": [{**dict(reviewed), "classification": "mistake"}],
+            },
+        )
+        assert retry.status_code == 201 and retry.json() == {"id": gid}
+        assert tuple(db.execute("SELECT blunders, mistakes_reviewed FROM games").fetchone()) == (
+            7,
+            1,
+        )
+        assert (
+            db.execute(
+                "SELECT ply, origin FROM mistake_events WHERE game_id = ? ORDER BY ply", (gid,)
+            ).fetchall()
+            == events
+        )
         progress = c.get("/api/progress?tz=0").json()
         assert progress["weeks"][6]["blunders_per_10_moves"] == 10.0
         assert progress["weeks"][7]["blunders_per_10_moves"] is None

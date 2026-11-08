@@ -1,12 +1,26 @@
 import { expect, test, type Locator } from '@playwright/test'
 import { Chess } from 'chess.js'
+import { adminApi, userApi } from './helpers.ts'
 
 type Block = { type: string; fen?: string; solution?: string[] }
 type Puzzle = { solution: string[] }
 type Card = { card: { fen: string } | null }
 
-test('user journey: lesson, puzzle, game, review, mistakes deck', async ({ page, request, hasTouch }) => {
+test.use({ storageState: { cookies: [], origins: [] } })
+
+test('user journey: lesson, puzzle, game, review, mistakes deck', async ({ page, playwright, baseURL, hasTouch }) => {
   test.setTimeout(180_000)
+  const admin = await adminApi(playwright.request, baseURL!)
+  try {
+    const user = await userApi(playwright.request, baseURL!, admin, 'journey')
+    try {
+      await page.context().addCookies((await user.ctx.storageState()).cookies)
+    } finally {
+      await user.ctx.dispose()
+    }
+  } finally {
+    await admin.dispose()
+  }
   const press = (l: Locator) => (hasTouch ? l.tap() : l.click())
   const sq = (s: string) => page.locator(`[data-square="${s}"]`)
   const status = page.getByTestId('status')
@@ -79,7 +93,7 @@ test('user journey: lesson, puzzle, game, review, mistakes deck', async ({ page,
   await expect(page.getByTestId('line-explain').first()).toContainText('e4')
 
   // Finished game with a blunder, then review it.
-  const created = await request.post('/api/games', {
+  const created = await page.request.post('/api/games', {
     data: {
       pgn: '1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7#',
       player_color: 'black',
@@ -95,7 +109,10 @@ test('user journey: lesson, puzzle, game, review, mistakes deck', async ({ page,
   await press(row.getByRole('button', { name: 'Разобрать' }))
   await expect(page.getByTestId('key-moment').first()).toBeVisible({ timeout: 20_000 })
   const moment = page.getByTestId('key-moment').first()
-  await press(moment.getByRole('button', { name: 'Почему ход плохой?' }))
+  const why = moment.getByRole('button', { name: 'Почему ход плохой?' })
+  await expect(why).toBeHidden()
+  await press(moment.getByRole('button', { name: 'Показать позицию' }))
+  await press(why)
   const answer = moment.getByRole('status').last()
   await expect(answer).toHaveText(/\S{3,}/)
   await expect(answer).not.toContainText('недоступен')

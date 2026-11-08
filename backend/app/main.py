@@ -30,6 +30,7 @@ from app.mcp.server import router as mcp_router
 from app.mistakes.routes import router as mistakes_router
 from app.openings.routes import router as openings_router
 from app.progress.routes import router as progress_router
+from app.progress.training import router as training_router
 from app.puzzles.routes import router as puzzles_router
 from app.review.routes import router as review_router
 from app.security import install as install_security
@@ -101,6 +102,7 @@ def create_app(settings: Settings = default_settings) -> FastAPI:
         review_router,
         mistakes_router,
         progress_router,
+        training_router,
         plan_router,
         key_router,
         activity_router,

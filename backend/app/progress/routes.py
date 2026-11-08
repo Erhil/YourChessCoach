@@ -182,7 +182,10 @@ def build_progress(
     game_theme = next((key for key in game_themes if key in OFFERED), None)
     # A different puzzle is practice in a new position. It does not prove skill transfer.
     transfer = db.execute(
-        "SELECT motif, ref FROM mistakes WHERE user_id = ? AND source = 'puzzle'"
+        "SELECT motif, COALESCE(("
+        " SELECT a.puzzle_id FROM mistake_events e JOIN puzzle_attempts a ON a.id = e.attempt_id"
+        " WHERE e.card_id = mistakes.id LIMIT 1"
+        "), ref) AS ref FROM mistakes WHERE user_id = ? AND source = 'puzzle'"
         " AND learned_at <= strftime('%Y-%m-%dT%H:%M:%SZ', ?, '-7 days')"
         " AND due_at <= ? ORDER BY due_at, id LIMIT 1",
         (user_id, now_utc(), now_utc()),

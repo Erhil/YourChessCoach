@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { CoachResult } from '../api/client'
-import { addPlayMistake } from '../api/mistakes'
-import { sessionLogin } from '../auth/session'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import type { CoachResult, GameError } from '../api/client'
 import { readHelp } from './coachSettings'
 import { CLASS_WORD } from './notation'
 
@@ -19,20 +17,68 @@ export type Advice = {
   after: string
 }
 type Gate = { id: number; len: number; promise: Promise<void>; release: () => void }
+type MoveCheck = { task?: Promise<void>; verdict?: Verdict }
+
+// A route change does not cancel a confirmed move's engine request.
+const checks = new Map<string, Map<number, MoveCheck>>()
+const empty: Record<string, string> = {}
+const verdictsByGame = new Map<string, Record<string, string>>()
+const viewing = new Set<string>()
+const changes = new EventTarget()
+const subscribe = (callback: () => void) => {
+  changes.addEventListener('change', callback)
+  return () => changes.removeEventListener('change', callback)
+}
+
+function publish(clientId: string, id: number) {
+  const verdicts: Record<string, string> = {}
+  for (const [ply, check] of checks.get(clientId) ?? []) {
+    if (check.verdict) verdicts[`${id}:${ply}`] = check.verdict.facts.classification
+  }
+  verdictsByGame.set(clientId, verdicts)
+  changes.dispatchEvent(new Event('change'))
+}
+
+export function gameAnalysis(clientId: string) {
+  const errors: GameError[] = []
+  for (const [ply, check] of checks.get(clientId) ?? []) {
+    const facts = check.verdict?.facts
+    if (facts?.best_move && (facts.classification === 'mistake' || facts.classification === 'blunder')) {
+      errors.push({
+        ply: ply + 1, best_uci: facts.best_move.uci, best_line: facts.best_line, classification: facts.classification,
+        motif: facts.motifs_against?.[0]?.kind ?? facts.motifs_missed?.[0]?.kind,
+      })
+    }
+  }
+  return { verdicts: verdictsByGame.get(clientId) ?? empty, errors }
+}
+
+export async function finishCoach(clientId: string) {
+  await Promise.all([...checks.get(clientId)?.values() ?? []].map((check) => check.task))
+  const analysis = gameAnalysis(clientId)
+  checks.delete(clientId)
+  if (!viewing.has(clientId)) verdictsByGame.delete(clientId)
+  return analysis
+}
 
 /**
  * After a player move: holds the opponent reply (gate) until the coach has answered.
  * Which answers show advice depends on the help level (see coachSettings). Only a blunder
  * keeps the gate shut until `proceed`. `verdicts` keeps the class of each move by `${game id}:${ply}`.
  */
-export function useCoach() {
+export function useCoach(clientId: string | undefined) {
   const [advice, setAdvice] = useState<Advice | null>(null)
-  const [verdicts, setVerdicts] = useState<Record<string, string>>({})
+  const verdicts = useSyncExternalStore(subscribe, () => verdictsByGame.get(clientId ?? '') ?? empty)
   const gate = useRef<Gate | null>(null)
-  const [login] = useState(sessionLogin)
-  const results = useRef<Record<string, string>>({})
-  const pending = useRef(new Map<string, Promise<void>>())
-  const tokens = useRef(new Map<string, object>())
+
+  useEffect(() => {
+    if (!clientId) return
+    viewing.add(clientId)
+    return () => {
+      viewing.delete(clientId)
+      if (!checks.has(clientId)) verdictsByGame.delete(clientId)
+    }
+  }, [clientId])
 
   const reset = useCallback(() => {
     gate.current?.release()
@@ -45,29 +91,22 @@ export function useCoach() {
     gate.current = null
   }, [])
 
-  const begin = useCallback((id: number, len: number, verdict: Promise<Verdict>, before: string, uci: string, after: string) => {
+  const begin = (clientId: string, id: number, len: number, verdict: Promise<Verdict>, before: string, uci: string, after: string) => {
     let release!: () => void
     const me: Gate = { id, len, release: () => release(), promise: new Promise<void>((r) => (release = r)) }
     gate.current = me
     setAdvice(null)
-    const key = `${id}:${len - 1}`
-    delete results.current[key]
-    setVerdicts({ ...results.current })
-    const token = {}
-    tokens.current.set(key, token)
-    const task = verdict.then((v) => {
-      if (tokens.current.get(key) !== token) return
-      if (v) {
-        results.current[key] = v.facts.classification
-        setVerdicts({ ...results.current })
-      }
+    const ply = len - 1
+    const game = checks.get(clientId) ?? new Map<number, MoveCheck>()
+    checks.set(clientId, game)
+    const check: MoveCheck = {}
+    game.set(ply, check)
+    check.task = verdict.then((v) => {
+      if (game.get(ply) !== check) return
+      check.verdict = v
+      publish(clientId, id)
       const bad = v?.facts.classification === 'mistake' || v?.facts.classification === 'blunder'
       const blunder = v?.facts.classification === 'blunder'
-      const best = v?.facts.best_move
-      if (v && bad && best && sessionLogin() === login) {
-        const motif = v.facts.motifs_against?.[0]?.kind ?? v.facts.motifs_missed?.[0]?.kind
-        addPlayMistake({ expected_login: login, fen: before, best_uci: best.uci, played_uci: uci, classification: v.facts.classification, motif }).catch(() => {})
-      }
       if (gate.current !== me) return
       const level = readHelp()
       const cls = v?.facts.classification
@@ -77,26 +116,18 @@ export function useCoach() {
         setAdvice({ text, source: v.explanation?.source ?? '', lesson: v.facts.lesson, hold: blunder, facts: v.facts, before, uci, after })
         if (!blunder) release()
       } else release()
-    }).finally(() => { if (pending.current.get(key) === task) pending.current.delete(key) })
-    pending.current.set(key, task)
+    }).finally(() => { delete check.task })
     if (readHelp() === 1) release()
-  }, [login])
+  }
 
-  const discard = useCallback((id: number, from: number) => {
-    for (const key of tokens.current.keys()) {
-      if (key.startsWith(`${id}:`) && Number(key.split(':')[1]) >= from) {
-        tokens.current.delete(key)
-        pending.current.delete(key)
-        delete results.current[key]
-      }
+  const discard = (clientId: string, id: number, from: number) => {
+    const game = checks.get(clientId)
+    if (!game) return
+    for (const ply of game.keys()) {
+      if (ply >= from) game.delete(ply)
     }
-    setVerdicts({ ...results.current })
-  }, [])
-
-  const finish = useCallback(async (id: number) => {
-    await Promise.all([...pending.current].filter(([key]) => key.startsWith(`${id}:`)).map(([, task]) => task))
-    return { ...results.current }
-  }, [])
+    publish(clientId, id)
+  }
 
   const wait = useCallback((id: number, len: number) => {
     const g = gate.current
@@ -108,5 +139,5 @@ export function useCoach() {
     gate.current?.release()
   }, [])
 
-  return { advice, verdicts, begin, wait, proceed, reset, discard, finish }
+  return { advice, verdicts, begin, wait, proceed, reset, discard }
 }

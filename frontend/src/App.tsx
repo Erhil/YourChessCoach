@@ -46,7 +46,7 @@ export default function App() {
       <Route path="login" element={<Login user={user ?? null} onLogin={apply} />} />
       {user ? (
         <Route element={<Layout login={user} onLogout={leave} />}>
-          <Route index element={<Today />} />
+          <Route index element={<Today login={user} />} />
           <Route path="play" element={<Play />} />
           <Route path="puzzles" element={<Puzzles />} />
           <Route path="lessons" element={<Lessons />} />

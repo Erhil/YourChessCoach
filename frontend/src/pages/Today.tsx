@@ -8,6 +8,7 @@ import { getProgress, type Progress } from '../api/progress.ts'
 import DailyTasks from '../components/DailyTasks.tsx'
 import NextAchievements from '../components/NextAchievements.tsx'
 import PlanBlock, { nameOf } from '../components/PlanBlock.tsx'
+import Training from '../components/Training.tsx'
 import WeekBlock from '../components/WeekBlock.tsx'
 import tcss from '../components/Today.module.css'
 import { nextLesson } from '../lessons/nextLesson.ts'
@@ -15,7 +16,7 @@ import { candidates, dailyTasks, focusTheme, loadSwap, storeSwap, type Swap, typ
 
 const ZERO = { puzzles: 0, cards: 0, lesson_positions: 0, games: 0 }
 
-export default function Today() {
+export default function Today({ login }: { login: string }) {
   const [activity, setActivity] = useState<Activity | null | undefined>(undefined)
   // undefined = loading, null = failed: the tasks then go without the weak theme and the due cards
   const [progress, setProgress] = useState<Progress | null | undefined>(undefined)
@@ -82,6 +83,7 @@ export default function Today() {
   return (
     <>
       <h1>Сегодня</h1>
+      <Training key={login} login={login} />
       <p className="muted">Хватит и 5 минут: начните с одной задачи.</p>
       {comeback ? (
         <section aria-label="С возвращением" className={tcss.card}>
